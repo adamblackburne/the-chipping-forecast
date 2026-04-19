@@ -22,20 +22,16 @@ export default function CreateGroupPage() {
     fetch("/api/tournaments")
       .then((r) => r.json())
       .then((data) => {
-        // Always use the next upcoming tournament for picks, never an in-play one
-        const t = data.next ?? data.tournament;
-        if (t?.status === "in") {
-          setError("This tournament has already started. Please wait for the next one.");
-        } else {
-          setTournament(t);
-        }
+        // Only use the next upcoming (pre) tournament — never an in-play one.
+        // If no upcoming tournament exists, we still allow group creation;
+        // the tournament will be linked automatically once ESPN announces one.
+        setTournament(data.next ?? null);
       })
       .catch(() => setError("Could not load tournament data"))
       .finally(() => setLoading(false));
   }, []);
 
   async function handleCreate() {
-    if (!tournament) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -45,10 +41,10 @@ export default function CreateGroupPage() {
         body: JSON.stringify({
           groupName: groupName.trim() || "Sunday Sandbaggers",
           maxPlayers: maxPlayers ? parseInt(maxPlayers, 10) : null,
-          tournamentEspnId: tournament.id,
-          tournamentName: tournament.name,
-          tournamentStartDate: tournament.startDate,
-          firstTeeTime: tournament.firstTeeTime ?? tournament.startDate,
+          tournamentEspnId:    tournament?.id ?? null,
+          tournamentName:      tournament?.name ?? null,
+          tournamentStartDate: tournament?.startDate ?? null,
+          firstTeeTime:        tournament?.firstTeeTime ?? tournament?.startDate ?? null,
         }),
       });
       const data = await res.json();
@@ -104,7 +100,12 @@ export default function CreateGroupPage() {
               status={tournament.status}
             />
           ) : (
-            <p className="text-sm text-warn">Could not load tournament</p>
+            <div className="rounded-xl border border-line-soft bg-paper-2 px-4 py-3 space-y-1">
+              <p className="font-sans text-sm text-ink-2">No tournament announced yet</p>
+              <p className="font-sans text-xs text-ink-3">
+                You can still create your group and invite friends. Picks will open automatically once the next tournament is announced.
+              </p>
+            </div>
           )}
         </div>
 
@@ -116,7 +117,7 @@ export default function CreateGroupPage() {
             full
             size="lg"
             onClick={handleCreate}
-            disabled={submitting || loading || !tournament}
+            disabled={submitting || loading}
           >
             {submitting ? "Creating…" : "Create group →"}
           </Button>

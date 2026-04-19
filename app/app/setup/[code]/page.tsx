@@ -27,6 +27,7 @@ export default function SetupPage({ params }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [personalUrl, setPersonalUrl] = useState<string | null>(null);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
+  const [awaitingTournament, setAwaitingTournament] = useState(false);
 
   // If there's a ?t= token in the URL, check if we already have a session
   useEffect(() => {
@@ -59,6 +60,12 @@ export default function SetupPage({ params }: Props) {
       setSessionToken(token);
       setPersonalUrl(url);
       saveSession({ sessionToken: token, displayName: name, competitionCode: upperCode });
+
+      // Check whether there's a tournament to pick for
+      const compRes = await fetch(`/api/competition/${upperCode}`);
+      const compData = await compRes.json();
+      setAwaitingTournament(compData.competition?.status === "awaiting_tournament");
+
       setStep("link");
     } catch (e) {
       setNameError(e instanceof Error ? e.message : "Something went wrong");
@@ -68,7 +75,11 @@ export default function SetupPage({ params }: Props) {
   }, [displayName, upperCode]);
 
   function handleContinue() {
-    router.push(`/competition/${upperCode}/picks`);
+    router.push(
+      awaitingTournament
+        ? `/competition/${upperCode}`
+        : `/competition/${upperCode}/picks`
+    );
   }
 
   return (
@@ -118,7 +129,9 @@ export default function SetupPage({ params }: Props) {
                 You&apos;re in, {displayName}!
               </h2>
               <p className="font-sans text-sm text-ink-2 mt-1">
-                Save your personal link before making picks.
+                {awaitingTournament
+                  ? "Save your personal link — picks will open once the tournament is announced."
+                  : "Save your personal link before making picks."}
               </p>
             </div>
 
@@ -131,7 +144,7 @@ export default function SetupPage({ params }: Props) {
                 size="lg"
                 onClick={handleContinue}
               >
-                I saved it — make picks →
+                {awaitingTournament ? "I saved it — go to group →" : "I saved it — make picks →"}
               </Button>
             </div>
           </>

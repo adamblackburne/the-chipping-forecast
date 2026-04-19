@@ -25,10 +25,6 @@ export async function POST(req: NextRequest) {
     firstTeeTime,
   } = body;
 
-  if (!tournamentEspnId || !tournamentName || !firstTeeTime) {
-    return NextResponse.json({ error: "Missing tournament data" }, { status: 400 });
-  }
-
   const db = createServiceClient();
 
   // Generate a unique join code (retry up to 5 times on collision)
@@ -46,19 +42,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Could not generate unique code" }, { status: 500 });
   }
 
-  const pickDeadline = computeDeadline(firstTeeTime).toISOString();
+  const hasTournament = tournamentEspnId && tournamentName && firstTeeTime;
+  const pickDeadline = hasTournament ? computeDeadline(firstTeeTime).toISOString() : null;
 
   const { data: comp, error } = await db
     .from("competitions")
     .insert({
       join_code:             joinCode,
-      tournament_espn_id:    tournamentEspnId,
-      tournament_name:       tournamentName,
-      tournament_start_date: tournamentStartDate,
+      tournament_espn_id:    tournamentEspnId ?? null,
+      tournament_name:       tournamentName ?? null,
+      tournament_start_date: tournamentStartDate ?? null,
       pick_deadline:         pickDeadline,
       max_players:           maxPlayers ?? null,
-      status:                "open",
-      // created_by_session filled in after the host sets their name
+      status:                hasTournament ? "open" : "awaiting_tournament",
     })
     .select()
     .single();

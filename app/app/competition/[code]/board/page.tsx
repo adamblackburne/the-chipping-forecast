@@ -31,6 +31,11 @@ interface LeaderboardData {
   isLive: boolean;
 }
 
+interface LiveTournament {
+  id: string;
+  name: string;
+}
+
 function bestFinish(picks: PickDisplay[]): string {
   let best = Infinity;
   let bestDisplay = "–";
@@ -53,6 +58,7 @@ export default function BoardPage() {
   const [data, setData] = useState<LeaderboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [openMemberId, setOpenMemberId] = useState<string | null>(null);
+  const [liveTournament, setLiveTournament] = useState<LiveTournament | null>(null);
 
   useEffect(() => {
     const session = getSession();
@@ -65,10 +71,16 @@ export default function BoardPage() {
       headers: { "x-session-token": session.sessionToken },
     })
       .then((r) => r.json())
-      .then((d: LeaderboardData) => {
+      .then(async (d: LeaderboardData) => {
         setData(d);
         const me = d.members.find((m) => m.isCurrentUser);
         if (me) setOpenMemberId(me.id);
+
+        // If no tournament linked to this group, check for a live ESPN tournament
+        if (!d.tournamentId) {
+          const tr = await fetch("/api/tournaments").then((r) => r.json()).catch(() => null);
+          if (tr?.inPlay) setLiveTournament({ id: tr.inPlay.id, name: tr.inPlay.name });
+        }
       })
       .catch(() => {})
       .finally(() => setLoading(false));

@@ -5,13 +5,13 @@
 create table if not exists competitions (
   id                    uuid primary key default gen_random_uuid(),
   join_code             text not null unique,
-  tournament_espn_id    text not null,
-  tournament_name       text not null,
+  tournament_espn_id    text,
+  tournament_name       text,
   tournament_start_date date,
-  pick_deadline         timestamptz not null,
+  pick_deadline         timestamptz,
   max_players           int,
-  status                text not null default 'open'
-                          check (status in ('open', 'live', 'completed')),
+  status                text not null default 'awaiting_tournament'
+                          check (status in ('awaiting_tournament', 'open', 'live', 'completed')),
   created_by_session    uuid,
   created_at            timestamptz not null default now()
 );

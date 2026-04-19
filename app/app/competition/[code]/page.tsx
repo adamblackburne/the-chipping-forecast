@@ -31,6 +31,7 @@ export default function CompetitionPage({ params }: Props) {
   const [deadlineLabel, setDeadlineLabel] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [revealed, setRevealed] = useState(false);
+  const [awaitingTournament, setAwaitingTournament] = useState(false);
 
   // Handle ?t= personal link token
   useEffect(() => {
@@ -59,7 +60,9 @@ export default function CompetitionPage({ params }: Props) {
       const picksData = await picksRes.json();
       const partData = await partRes.json();
 
-      if (compData.competition?.pick_deadline) {
+      if (compData.competition?.status === "awaiting_tournament") {
+        setAwaitingTournament(true);
+      } else if (compData.competition?.pick_deadline) {
         const dl = new Date(compData.competition.pick_deadline);
         setDeadline(dl);
         setDeadlineLabel(
@@ -130,8 +133,15 @@ export default function CompetitionPage({ params }: Props) {
         </div>
       ) : (
         <main className="flex flex-col flex-1 px-5 py-5 gap-5 overflow-y-auto">
-          {/* Countdown or revealed state */}
-          {!revealed && deadline ? (
+          {/* Awaiting tournament / Countdown / Revealed state */}
+          {awaitingTournament ? (
+            <div className="rounded-xl border border-line-soft bg-paper-2 px-4 py-4 text-center space-y-1">
+              <p className="font-display font-bold text-lg text-ink">Waiting for next tournament</p>
+              <p className="font-sans text-xs text-ink-2">
+                Picks will open automatically once the schedule is announced. Check back soon.
+              </p>
+            </div>
+          ) : !revealed && deadline ? (
             <div className="text-center space-y-1">
               <p className="font-sans text-sm text-ink-2">Picks reveal in</p>
               <CountdownTimer
@@ -153,7 +163,8 @@ export default function CompetitionPage({ params }: Props) {
 
           <Divider />
 
-          {/* User's picks */}
+          {/* User's picks — hidden until tournament is announced */}
+          {!awaitingTournament && (
           <div>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
@@ -177,6 +188,7 @@ export default function CompetitionPage({ params }: Props) {
               </Link>
             )}
           </div>
+          )}
 
           <Divider />
 

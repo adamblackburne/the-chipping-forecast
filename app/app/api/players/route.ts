@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     .eq("join_code", code.toUpperCase())
     .single();
 
-  if (!comp) return NextResponse.json({ players: [] });
+  if (!comp || !comp.tournament_espn_id) return NextResponse.json({ players: [] });
 
   const [rankings, fieldPlayers] = await Promise.all([
     fetchWorldRankings(),

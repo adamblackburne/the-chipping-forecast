@@ -8,9 +8,9 @@ interface TabBarProps {
 }
 
 const tabs = [
-  { id: "picks",  label: "My Picks", href: (code: string) => `/competition/${code}` },
-  { id: "board",  label: "Board",    href: (code: string) => `/competition/${code}/board` },
-  { id: "group",  label: "Group",    href: (code: string) => `/competition/${code}/group` },
+  { id: "picks",  label: "My Picks",    href: (code: string) => `/competition/${code}` },
+  { id: "board",  label: "Leaderboard", href: (code: string) => `/competition/${code}/board` },
+  { id: "group",  label: "Group",       href: (code: string) => `/competition/${code}/group` },
 ];
 
 export function TabBar({ competitionCode }: TabBarProps) {
@@ -23,7 +23,13 @@ export function TabBar({ competitionCode }: TabBarProps) {
     >
       {tabs.map((tab) => {
         const href = tab.href(competitionCode);
-        const isActive = pathname === href || (tab.id === "picks" && pathname.endsWith("/picks"));
+        const isActive =
+          tab.id === "picks"
+            ? pathname === href || pathname.endsWith("/picks")
+            : tab.id === "board"
+            ? pathname.startsWith(href)
+            : pathname === href;
+
         return (
           <Link
             key={tab.id}
@@ -44,8 +50,58 @@ export function TabBar({ competitionCode }: TabBarProps) {
 }
 
 function TabIcon({ id, active }: { id: string; active: boolean }) {
-  const base = `w-5 h-5 rounded ${active ? "bg-ink" : "border border-current"}`;
-  if (id === "picks") return <div className={base} aria-hidden />;
-  if (id === "board") return <div className={`${base} rounded-sm`} aria-hidden />;
-  return <div className={`${base} rounded-full`} aria-hidden />;
+  if (id === "picks") return <StarIcon active={active} />;
+  if (id === "board") return <BarChartIcon active={active} />;
+  return <GroupIcon active={active} />;
+}
+
+function StarIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden>
+      <path
+        d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+        fill={active ? "currentColor" : "none"}
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function BarChartIcon({ active }: { active: boolean }) {
+  const f = active ? "currentColor" : "none";
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden>
+      <rect x="3"  y="13" width="4" height="8"  rx="0.5" fill={f} stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" />
+      <rect x="10" y="8"  width="4" height="13" rx="0.5" fill={f} stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" />
+      <rect x="17" y="3"  width="4" height="18" rx="0.5" fill={f} stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function GroupIcon({ active }: { active: boolean }) {
+  if (active) {
+    return (
+      <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden fill="currentColor">
+        {/* Primary person */}
+        <circle cx="9" cy="7" r="3.5" />
+        <path d="M1.5 21a7.5 7.5 0 0 0 15 0z" />
+        {/* Secondary person */}
+        <circle cx="18" cy="6.5" r="2.5" />
+        <path d="M13 21a5.5 5.5 0 0 0 11 0z" />
+      </svg>
+    );
+  }
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+      {/* Primary person */}
+      <circle cx="9" cy="7" r="3.5" stroke="currentColor" strokeWidth="1.75" />
+      <path d="M1.5 21a7.5 7.5 0 0 0 15 0" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+      {/* Secondary person */}
+      <circle cx="18" cy="6.5" r="2.5" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M13 21a5.5 5.5 0 0 0 11 0" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
 }

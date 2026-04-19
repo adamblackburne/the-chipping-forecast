@@ -33,6 +33,7 @@ export default function PicksPage({ params }: Props) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
+  const [awaitingTournament, setAwaitingTournament] = useState(false);
 
   useEffect(() => {
     const session = getSession();
@@ -58,6 +59,10 @@ export default function PicksPage({ params }: Props) {
         const compData = await competitionRes.json();
         const picksData = await existingPicksRes.json();
 
+        if (compData.competition?.status === "awaiting_tournament") {
+          setAwaitingTournament(true);
+          return;
+        }
         setPlayers(playersData.players ?? []);
         if (compData.competition?.pick_deadline) {
           setDeadline(new Date(compData.competition.pick_deadline));
@@ -137,6 +142,15 @@ export default function PicksPage({ params }: Props) {
       {loading ? (
         <div className="flex flex-1 items-center justify-center">
           <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : awaitingTournament ? (
+        <div className="flex flex-1 items-center justify-center px-8">
+          <div className="text-center space-y-2">
+            <p className="font-display font-bold text-xl text-ink">No tournament yet</p>
+            <p className="font-sans text-sm text-ink-2">
+              Picks will open once the next tournament is announced. Check back soon.
+            </p>
+          </div>
         </div>
       ) : (
         <>
