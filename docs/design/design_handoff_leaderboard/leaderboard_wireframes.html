@@ -1,0 +1,325 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Leaderboard · Sortable Table · Handoff</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;700&family=Architects+Daughter&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+:root {
+  --paper: #FAF8F3;
+  --paper-2: #F1EEE4;
+  --ink: #1A1A1A;
+  --ink-2: #4A4A4A;
+  --ink-3: #8A8A8A;
+  --line-soft: #C9C5BA;
+  --accent: #4A6B4A;
+  --accent-soft: #DDE5D8;
+  --warn: #A86B3C;
+  --warn-soft: #EADDCB;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); font-family: 'Architects Daughter', sans-serif; font-size: 15px; line-height: 1.4; }
+body {
+  background-image:
+    radial-gradient(circle at 20% 10%, rgba(0,0,0,0.015) 1px, transparent 1px),
+    radial-gradient(circle at 70% 40%, rgba(0,0,0,0.012) 1px, transparent 1px);
+  background-size: 23px 23px, 31px 31px;
+}
+.page { max-width: 1200px; margin: 0 auto; padding: 48px 40px 80px; }
+.masthead {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 32px; padding-bottom: 24px; border-bottom: 2px solid var(--ink); margin-bottom: 32px;
+}
+.masthead h1 { font-family: 'Caveat', cursive; font-size: 56px; line-height: 1; margin: 0; font-weight: 700; }
+.masthead .sub { font-size: 13px; color: var(--ink-2); max-width: 460px; text-align: right; }
+.stamp {
+  display: inline-flex; gap: 6px; align-items: center;
+  font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 1.5px;
+  text-transform: uppercase; border: 1.5px solid var(--ink); padding: 4px 8px; border-radius: 2px;
+}
+.frames { display: flex; gap: 64px; align-items: flex-start; justify-content: center; flex-wrap: wrap; }
+.frame-col { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+.frame-caption {
+  font-family: 'Caveat', cursive; font-size: 22px; font-weight: 700; text-align: center;
+}
+.frame-caption .tag {
+  display: block; font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink-2); margin-top: 2px;
+}
+.annotation {
+  font-family: 'Caveat', cursive; font-size: 16px; color: var(--ink-2);
+  max-width: 320px; text-align: center; line-height: 1.25;
+}
+.connector { align-self: center; margin-top: 280px; }
+
+/* Phone */
+.phone {
+  width: 340px; height: 700px; border: 2px solid var(--ink); border-radius: 36px;
+  background: var(--paper); padding: 12px; position: relative; flex-shrink: 0;
+  box-shadow: 3px 4px 0 rgba(0,0,0,0.08);
+}
+.phone::before {
+  content: ''; position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
+  width: 80px; height: 4px; background: var(--ink); border-radius: 2px; z-index: 2;
+}
+.phone-screen {
+  width: 100%; height: 100%; border-radius: 30px; border: 1.5px solid var(--ink);
+  overflow: hidden; background: var(--paper); display: flex; flex-direction: column;
+}
+.statusbar {
+  display: flex; justify-content: space-between; padding: 6px 16px 4px;
+  font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--ink-2); flex-shrink: 0;
+}
+.statusbar .dots { display: flex; gap: 3px; }
+.statusbar .dots span { width: 3px; height: 3px; background: var(--ink-2); border-radius: 50%; display: inline-block; }
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 16px 10px; border-bottom: 1.5px solid var(--ink); flex-shrink: 0;
+}
+.topbar .back, .topbar .screen-title { font-family: 'Caveat', cursive; font-size: 22px; font-weight: 700; }
+.topbar .action { font-family: 'Architects Daughter', sans-serif; font-size: 12px; color: var(--ink-2); }
+.screen-body { flex: 1; padding: 14px 18px; overflow-y: auto; min-height: 0; }
+.tabbar {
+  display: flex; justify-content: space-around; padding: 8px 0 10px;
+  border-top: 1.5px solid var(--ink); flex-shrink: 0; background: var(--paper-2);
+}
+.tabbar .tab { display: flex; flex-direction: column; align-items: center; gap: 2px;
+  font-family: 'Architects Daughter', sans-serif; font-size: 11px; color: var(--ink-3); }
+.tabbar .tab.active { color: var(--ink); }
+.tabbar .tab .icon { width: 18px; height: 18px; border: 1.5px solid currentColor; border-radius: 3px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px;
+  border: 1.5px solid var(--ink); border-radius: 100px; font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; background: var(--paper); line-height: 1;
+}
+.chip.accent { background: var(--accent-soft); border-color: var(--accent); }
+.row { display: flex; gap: 8px; align-items: center; }
+.muted { color: var(--ink-2); }
+.tiny { font-family: 'Architects Daughter', sans-serif; font-size: 11px; color: var(--ink-2); }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="masthead">
+      <div>
+        <h1>Leaderboard — sortable table</h1>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:1.5px; text-transform:uppercase; color:var(--ink-2); margin-top:4px;">
+          The Chipping Forecast · screen 06 · handoff v1
+        </div>
+      </div>
+      <div class="sub">
+        Two screens: the group leaderboard with tap-to-expand picks drawer, and the full-field tournament leaderboard you reach via the "Full field ›" link. Low-fi wireframes — intent and behavior, not final visuals.
+        <div style="margin-top:8px;"><span class="stamp">Lo-fi · 2 screens</span></div>
+      </div>
+    </header>
+
+    <div class="frames">
+
+      <div class="frame-col">
+        <div class="frame-caption">A · Group leaderboard<span class="tag">entry screen</span></div>
+        <!-- =============== LeaderA =============== -->
+        <div class="phone">
+          <div class="phone-screen">
+            <div class="statusbar"><span>9:41</span><span class="dots"><span></span><span></span><span></span></span></div>
+            <div class="topbar">
+              <span class="back">‹</span>
+              <span class="screen-title">Leaderboard</span>
+              <span class="action">Full field ›</span>
+            </div>
+            <div style="padding:6px 12px; border-bottom:1px dashed var(--line-soft);">
+              <div class="row" style="justify-content:space-between;">
+                <span class="chip accent" style="font-size:9px;">● LIVE · R2 thru 12</span>
+                <span class="tiny muted">tap row → see names</span>
+              </div>
+            </div>
+            <div style="display:grid; grid-template-columns:24px 1fr 40px 48px 28px; padding:6px 12px; border-bottom:1.5px solid var(--ink); font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:1.2px; text-transform:uppercase; color:var(--ink-2); gap:6px; align-items:center;">
+              <span>#</span><span>Player ↕</span>
+              <span style="text-align:right;">Total ↓</span>
+              <span style="text-align:right;">Best</span>
+              <span style="text-align:center;">Δ</span>
+            </div>
+            <div class="screen-body" style="padding:0;">
+              <!-- row 1 Priya -->
+              <div style="display:grid; grid-template-columns:24px 1fr 40px 48px 28px; padding:10px 12px; border-bottom:1px dashed var(--line-soft); gap:6px; align-items:center; cursor:pointer;">
+                <span style="font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700;">1</span>
+                <div>
+                  <div class="row" style="gap:6px;"><span style="font-size:13px;">Priya</span><span class="tiny muted" style="font-size:10px;">▸</span></div>
+                  <div class="tiny muted">T2 · T9 · T12 · T15</div>
+                </div>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:18px; font-weight:700; text-align:right;">38</span>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--ink-2); text-align:right;">T2</span>
+                <span style="text-align:center; color:var(--accent); font-family:'JetBrains Mono',monospace; font-size:10px;">▲2</span>
+              </div>
+              <!-- row 2 Marco (you, EXPANDED) -->
+              <div style="display:grid; grid-template-columns:24px 1fr 40px 48px 28px; padding:10px 12px; background:var(--accent-soft); gap:6px; align-items:center; cursor:pointer;">
+                <span style="font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700;">2</span>
+                <div>
+                  <div class="row" style="gap:6px;"><span style="font-size:13px;">Marco <span class="tiny" style="color:var(--accent);">(you)</span></span><span class="tiny muted" style="font-size:10px;">▾</span></div>
+                  <div class="tiny muted">T3 · T14 · T18 · T17</div>
+                </div>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:18px; font-weight:700; text-align:right;">52</span>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--ink-2); text-align:right;">T3</span>
+                <span style="text-align:center; color:var(--warn); font-family:'JetBrains Mono',monospace; font-size:10px;">▼1</span>
+              </div>
+              <!-- expanded drawer -->
+              <div style="padding:2px 12px 10px 42px; background:var(--accent-soft); border-bottom:1px dashed var(--line-soft); border-left:3px solid var(--accent);">
+                <div class="row" style="justify-content:space-between; padding:3px 0; border-bottom:1px dotted var(--line-soft);">
+                  <div class="row" style="gap:6px;"><span style="font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--ink-3); min-width:24px;">#1</span><span style="font-size:12px;">Scheffler</span></div>
+                  <span style="font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700;">T3</span>
+                </div>
+                <div class="row" style="justify-content:space-between; padding:3px 0; border-bottom:1px dotted var(--line-soft);">
+                  <div class="row" style="gap:6px;"><span style="font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--ink-3); min-width:24px;">#12</span><span style="font-size:12px;">Lowry</span></div>
+                  <span style="font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700;">T14</span>
+                </div>
+                <div class="row" style="justify-content:space-between; padding:3px 0; border-bottom:1px dotted var(--line-soft);">
+                  <div class="row" style="gap:6px;"><span style="font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--ink-3); min-width:24px;">#21</span><span style="font-size:12px;">Bhatia</span></div>
+                  <span style="font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700;">T18</span>
+                </div>
+                <div class="row" style="justify-content:space-between; padding:3px 0;">
+                  <div class="row" style="gap:6px;"><span style="font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--ink-3); min-width:24px;">#42</span><span style="font-size:12px;">Knapp</span></div>
+                  <span style="font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700;">T17</span>
+                </div>
+              </div>
+              <!-- row 3 Jay -->
+              <div style="display:grid; grid-template-columns:24px 1fr 40px 48px 28px; padding:10px 12px; border-bottom:1px dashed var(--line-soft); gap:6px; align-items:center; cursor:pointer;">
+                <span style="font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700;">3</span>
+                <div>
+                  <div class="row" style="gap:6px;"><span style="font-size:13px;">Jay</span><span class="tiny muted" style="font-size:10px;">▸</span></div>
+                  <div class="tiny muted">T6 · T11 · T22 · T28</div>
+                </div>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:18px; font-weight:700; text-align:right;">67</span>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--ink-2); text-align:right;">T6</span>
+                <span style="text-align:center; color:var(--ink-3); font-family:'JetBrains Mono',monospace; font-size:10px;">–</span>
+              </div>
+              <!-- row 4 Dev -->
+              <div style="display:grid; grid-template-columns:24px 1fr 40px 48px 28px; padding:10px 12px; border-bottom:1px dashed var(--line-soft); gap:6px; align-items:center; cursor:pointer;">
+                <span style="font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700;">4</span>
+                <div>
+                  <div class="row" style="gap:6px;"><span style="font-size:13px;">Dev</span><span class="tiny muted" style="font-size:10px;">▸</span></div>
+                  <div class="tiny muted">T2 · T14 · T24 · CUT</div>
+                </div>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:18px; font-weight:700; text-align:right;">74</span>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--ink-2); text-align:right;">T2</span>
+                <span style="text-align:center; color:var(--warn); font-family:'JetBrains Mono',monospace; font-size:10px;">▼3</span>
+              </div>
+              <!-- row 5 Sam -->
+              <div style="display:grid; grid-template-columns:24px 1fr 40px 48px 28px; padding:10px 12px; border-bottom:1px dashed var(--line-soft); gap:6px; align-items:center; cursor:pointer;">
+                <span style="font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700;">5</span>
+                <div>
+                  <div class="row" style="gap:6px;"><span style="font-size:13px;">Sam</span><span class="tiny muted" style="font-size:10px;">▸</span></div>
+                  <div class="tiny muted">T8 · T22 · T26 · T35</div>
+                </div>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:18px; font-weight:700; text-align:right;">91</span>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--ink-2); text-align:right;">T8</span>
+                <span style="text-align:center; color:var(--accent); font-family:'JetBrains Mono',monospace; font-size:10px;">▲1</span>
+              </div>
+              <!-- row 6 Noor -->
+              <div style="display:grid; grid-template-columns:24px 1fr 40px 48px 28px; padding:10px 12px; border-bottom:1px dashed var(--line-soft); gap:6px; align-items:center; cursor:pointer;">
+                <span style="font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700;">6</span>
+                <div>
+                  <div class="row" style="gap:6px;"><span style="font-size:13px;">Noor</span><span class="tiny muted" style="font-size:10px;">▸</span></div>
+                  <div class="tiny muted">T10 · T20 · CUT · CUT</div>
+                </div>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:18px; font-weight:700; text-align:right;">112</span>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--ink-2); text-align:right;">T10</span>
+                <span style="text-align:center; color:var(--warn); font-family:'JetBrains Mono',monospace; font-size:10px;">▼2</span>
+              </div>
+            </div>
+            <div class="tabbar">
+              <div class="tab"><div class="icon"></div><span>My Picks</span></div>
+              <div class="tab active"><div class="icon"></div><span>Board</span></div>
+              <div class="tab"><div class="icon"></div><span>Group</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="annotation">Row 2 shows expanded state. Tapping any row toggles its picks drawer; only one open at a time. "You" row has accent-soft background regardless of state.</div>
+      </div>
+
+      <!-- connector arrow -->
+      <svg class="connector" width="60" height="20" viewBox="0 0 60 20"><path d="M2 10 Q 22 4 52 10 M 46 5 L 54 10 L 46 15" stroke="#4A4A4A" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+
+      <div class="frame-col">
+        <div class="frame-caption">B · Full field<span class="tag">tap "Full field ›"</span></div>
+        <!-- =============== LeaderAFullEvent =============== -->
+        <div class="phone">
+          <div class="phone-screen">
+            <div class="statusbar"><span>9:41</span><span class="dots"><span></span><span></span><span></span></span></div>
+            <div class="topbar">
+              <span class="back">‹</span>
+              <span class="screen-title">The Masters</span>
+              <span class="action">Filter</span>
+            </div>
+            <div style="padding:6px 12px; border-bottom:1px dashed var(--line-soft); display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <div class="tiny" style="text-transform:uppercase; letter-spacing:1.2px;">Full field · R2</div>
+                <div style="font-family:'Caveat',cursive; font-size:16px; font-weight:700; line-height:1;">All 89 golfers</div>
+              </div>
+              <span class="chip accent" style="font-size:9px;">● LIVE</span>
+            </div>
+            <div style="display:flex; padding:6px 10px; gap:4px; border-bottom:1.5px solid var(--ink);">
+              <div style="flex:1; text-align:center; padding:6px 4px; border:1.5px solid var(--ink); border-radius:6px; font-family:'Caveat',cursive; font-size:15px; background:var(--ink); color:var(--paper);">All</div>
+              <div style="flex:1; text-align:center; padding:6px 4px; border:1.5px solid var(--ink); border-radius:6px; font-family:'Caveat',cursive; font-size:15px; background:var(--paper);">Picked by group</div>
+              <div style="flex:1; text-align:center; padding:6px 4px; border:1.5px solid var(--ink); border-radius:6px; font-family:'Caveat',cursive; font-size:15px; background:var(--paper);">My picks</div>
+            </div>
+            <div style="display:grid; grid-template-columns:36px 1fr 36px 32px; padding:5px 12px; border-bottom:1px solid var(--ink); font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:1.2px; text-transform:uppercase; color:var(--ink-2); gap:6px;">
+              <span>Pos</span><span>Player</span>
+              <span style="text-align:right;">Score</span>
+              <span style="text-align:right;">Thru</span>
+            </div>
+            <div class="screen-body" style="padding:0;">
+              <!-- field rows -->
+              <!-- picked rows have accent-soft bg + "picked" chip -->
+<script id="field-data" type="application/json">[
+  {"pos":"T1","name":"R. McIlroy","score":-9,"thru":"12","picked":true},
+  {"pos":"T1","name":"S. Scheffler","score":-9,"thru":"11","picked":true},
+  {"pos":"T3","name":"X. Schauffele","score":-7,"thru":"13","picked":true},
+  {"pos":"T3","name":"L. Aberg","score":-7,"thru":"10","picked":false},
+  {"pos":"T5","name":"C. Morikawa","score":-6,"thru":"F","picked":false},
+  {"pos":"T5","name":"V. Hovland","score":-6,"thru":"14","picked":false},
+  {"pos":"T7","name":"J. Rose","score":-5,"thru":"F","picked":true},
+  {"pos":"T7","name":"H. Matsuyama","score":-5,"thru":"12","picked":false},
+  {"pos":"T9","name":"W. Zalatoris","score":-4,"thru":"9","picked":false},
+  {"pos":"T9","name":"A. Bhatia","score":-4,"thru":"11","picked":true},
+  {"pos":"T11","name":"S. Lowry","score":-3,"thru":"13","picked":true},
+  {"pos":"T11","name":"T. Hatton","score":-3,"thru":"10","picked":false},
+  {"pos":"T13","name":"P. Cantlay","score":-2,"thru":"F","picked":false},
+  {"pos":"T13","name":"S. Straka","score":-2,"thru":"11","picked":false}
+]</script>
+<script>
+(function () {
+  const data = JSON.parse(document.getElementById('field-data').textContent);
+  const host = document.currentScript.parentElement;
+  data.forEach((g, i) => {
+    const scoreColor = g.score < 0 ? 'var(--warn)' : 'var(--ink)';
+    const bg = g.picked ? 'var(--accent-soft)' : 'transparent';
+    const scoreStr = g.score > 0 ? '+' + g.score : g.score;
+    host.insertAdjacentHTML('beforeend', `
+      <div style="display:grid; grid-template-columns:36px 1fr 36px 32px; padding:7px 12px; gap:6px; align-items:center; border-bottom:1px dashed var(--line-soft); background:${bg};">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700;">${g.pos}</span>
+        <div class="row" style="gap:6px;">
+          <span style="font-size:13px;">${g.name}</span>
+          ${g.picked ? '<span class="chip accent" style="font-size:8px; padding:1px 5px;">picked</span>' : ''}
+        </div>
+        <span style="font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; text-align:right; color:${scoreColor};">${scoreStr}</span>
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--ink-2); text-align:right;">${g.thru}</span>
+      </div>
+    `);
+  });
+})();
+</script>
+            </div>
+            <div class="tabbar">
+              <div class="tab"><div class="icon"></div><span>My Picks</span></div>
+              <div class="tab active"><div class="icon"></div><span>Board</span></div>
+              <div class="tab"><div class="icon"></div><span>Group</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="annotation">Full PGA tournament leaderboard. Rows picked by anyone in your group are highlighted accent-soft with a "picked" chip. Segment toggle at top filters: All / Picked by group / My picks.</div>
+      </div>
+
+    </div>
+  </div>
+</body>
+</html>

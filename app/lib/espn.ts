@@ -23,10 +23,12 @@ export interface EspnPlayer {
 export interface EspnLeaderboardEntry {
   playerId: string;
   displayName: string;
-  position: number | null;
+  shortName: string;        // "F. Last" format
+  position: number | null;  // numeric position for scoring (e.g. 11 for T11)
   positionDisplay: string;  // "T12", "CUT", "WD", "DQ", etc.
   status: "active" | "cut" | "wd" | "dq" | "complete";
-  score: number | null;
+  score: number | null;     // score to par (e.g. -9, 0, +2)
+  thru: string | null;      // holes completed: "F", "12", etc.
   worldRanking: number;
 }
 
@@ -46,16 +48,21 @@ interface RawEvent {
 
 interface RawCompetitor {
   id?: string;
+  sortOrder?: number;
   athlete?: {
     id?: string;
     displayName?: string;
     shortName?: string;
   };
   status?: {
-    position?: { displayValue?: string; value?: number };
-    type?: { name?: string };
+    position?: { id?: string; displayName?: string; isTie?: boolean };
+    type?: { name?: string; state?: string; completed?: boolean };
+    displayValue?: string;
+    displayThru?: string;
+    thru?: number;
+    period?: number;
   };
-  score?: { value?: number };
+  score?: { value?: number; displayValue?: string };
   linescores?: unknown[];
 }
 
@@ -70,10 +77,18 @@ function parseStatus(raw: string | undefined): "pre" | "in" | "post" {
 function parsePlayerStatus(statusName: string | undefined): EspnLeaderboardEntry["status"] {
   if (!statusName) return "active";
   const s = statusName.toUpperCase();
-  if (s.includes("CUT") || s.includes("MC")) return "cut";
+  if (s.includes("CUT") || s.includes("MC") || s.includes("MISSED")) return "cut";
   if (s.includes("WD") || s.includes("WITHDRAW")) return "wd";
   if (s.includes("DQ") || s.includes("DISQUALIF")) return "dq";
+  if (s.includes("FINISH") || s.includes("COMPLETE")) return "complete";
   return "active";
+}
+
+function parseScoreToPar(displayValue: string | undefined): number | null {
+  if (!displayValue) return null;
+  if (displayValue === "E") return 0;
+  const parsed = parseInt(displayValue, 10);
+  return isNaN(parsed) ? null : parsed;
 }
 
 /** Fetch the current/upcoming PGA Tour event. */
@@ -195,18 +210,31 @@ export async function fetchLeaderboard(tournamentId: string): Promise<{
       const id = c.athlete?.id ?? c.id;
       if (!id) return null;
       const statusName = c.status?.type?.name;
-      const posVal = c.status?.position?.value;
+      const posId = c.status?.position?.id ? parseInt(c.status.position.id, 10) : null;
+      const isFinished = c.status?.type?.completed === true || c.status?.displayValue === "F";
       return {
         playerId: id,
         displayName: c.athlete?.displayName ?? "Unknown",
-        position: typeof posVal === "number" ? posVal : null,
-        positionDisplay: c.status?.position?.displayValue ?? "-",
+        shortName: c.athlete?.shortName ?? "",
+        position: posId !== null && !isNaN(posId) ? posId : null,
+        positionDisplay: c.status?.position?.displayName ?? c.status?.displayValue ?? "-",
         status: parsePlayerStatus(statusName),
-        score: typeof c.score?.value === "number" ? c.score.value : null,
+        score: parseScoreToPar(c.score?.displayValue),
+        thru: isFinished ? "F" : (c.status?.displayThru ?? null),
         worldRanking: 999,
-      };
+        _sortOrder: c.sortOrder ?? 9999,
+      } as EspnLeaderboardEntry & { _sortOrder: number };
     })
-    .filter((e): e is EspnLeaderboardEntry => e !== null);
+    .filter((e): e is EspnLeaderboardEntry => e !== null)
+    .sort((a, b) => {
+      const sa = (a as EspnLeaderboardEntry & { _sortOrder: number })._sortOrder;
+      const sb = (b as EspnLeaderboardEntry & { _sortOrder: number })._sortOrder;
+      return sa - sb;
+    })
+    .map((e) => {
+      const { _sortOrder: _, ...entry } = e as EspnLeaderboardEntry & { _sortOrder: number };
+      return entry;
+    });
 
   // Find the last position that made the cut
   const madeCut = entries

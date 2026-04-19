@@ -31,31 +31,36 @@ export default async function LandingPage() {
           <div className="flex flex-col gap-3">
             {/* In-play tournament */}
             {inPlay && (
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="w-3 h-0.5 bg-ink inline-block" aria-hidden />
-                  <span className="font-mono text-[10px] uppercase tracking-widest text-ink-2">
-                    This week
-                  </span>
-                </div>
-                <div className="border border-ink/10 bg-paper rounded-xl p-4">
-                  <div className="flex items-start justify-between gap-2 mb-1">
-                    <p className="font-display font-bold text-xl text-ink leading-tight">
-                      {inPlay.name}
-                    </p>
-                    <span className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full border shrink-0 bg-red-600 text-white border-red-600">
-                      <span className="relative flex h-1.5 w-1.5">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
-                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-white" />
-                      </span>
-                      Live
+              <Link href="/leaderboard" className="block">
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="w-3 h-0.5 bg-ink inline-block" aria-hidden />
+                    <span className="font-mono text-[10px] uppercase tracking-widest text-ink-2">
+                      This week
                     </span>
                   </div>
-                  {inPlay.venue && (
-                    <p className="font-sans text-xs text-ink-2">{inPlay.venue}</p>
-                  )}
+                  <div className="border border-ink/10 bg-paper rounded-xl p-4">
+                    <div className="flex items-start justify-between gap-2 mb-1">
+                      <p className="font-display font-bold text-xl text-ink leading-tight">
+                        {inPlay.name}
+                      </p>
+                      <span className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full border shrink-0 bg-red-600 text-white border-red-600">
+                        <span className="relative flex h-1.5 w-1.5">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                          <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-white" />
+                        </span>
+                        Live
+                      </span>
+                    </div>
+                    {inPlay.venue && (
+                      <p className="font-sans text-xs text-ink-2">{inPlay.venue}</p>
+                    )}
+                    <p className="font-sans text-xs text-ink underline mt-2 text-right">
+                      View Live Leaderboard
+                    </p>
+                  </div>
                 </div>
-              </div>
+              </Link>
             )}
 
             {/* Next tournament — shown as "This week" when nothing is live, or "Upcoming" below the live one */}
