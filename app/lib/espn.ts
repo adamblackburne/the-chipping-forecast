@@ -150,10 +150,11 @@ function adaptTournament(e: RawEvent): EspnTournament {
 
 /** Fetch field (players) for a tournament, with world rankings. */
 export async function fetchTournamentField(tournamentId: string): Promise<EspnPlayer[]> {
-  const res = await fetch(
-    `${ESPN_BASE}/leaderboard?event=${tournamentId}`,
-    { next: { revalidate: 600 } }
-  );
+  // Mock tournament has no real ESPN event — fetch the current real leaderboard for its field
+  const url = tournamentId === "mock-tournament"
+    ? `${ESPN_BASE}/leaderboard`
+    : `${ESPN_BASE}/leaderboard?event=${tournamentId}`;
+  const res = await fetch(url, { next: { revalidate: 600 } });
   if (!res.ok) return [];
   const data = await res.json() as { events?: RawEvent[] };
   const event = data.events?.find((e) => e.id === tournamentId) ?? data.events?.[0];
