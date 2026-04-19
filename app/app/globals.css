@@ -1,0 +1,53 @@
+@import "tailwindcss";
+
+/* ─────────────────────────────────────────────────────────
+   Design tokens — edit here to retheme the entire app.
+   All Tailwind colour/font utilities map to these vars.
+   ───────────────────────────────────────────────────────── */
+
+@theme {
+  /* Colours */
+  --color-ink:         rgb(26  26  26);
+  --color-ink-2:       rgb(74  74  74);
+  --color-ink-3:       rgb(138 138 138);
+  --color-paper:       rgb(250 248 243);
+  --color-paper-2:     rgb(241 238 228);
+  --color-accent:      rgb(74  107 74);
+  --color-accent-soft: rgb(221 229 216);
+  --color-warn:        rgb(168 107 60);
+  --color-warn-soft:   rgb(234 221 203);
+  --color-line-soft:   rgb(201 197 186);
+
+  /* Fonts */
+  --font-display: var(--font-fraunces), Georgia, serif;
+  --font-sans:    var(--font-inter), system-ui, sans-serif;
+  --font-mono:    var(--font-jetbrains), ui-monospace, monospace;
+}
+
+/* ── Base styles ─────────────────────────────────────────── */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.5;
+  min-height: 100dvh;
+}
+
+/* ── Mobile shell — constrain to phone width in browser ──── */
+.mobile-shell {
+  max-width: 430px;
+  min-height: 100dvh;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-paper);
+  position: relative;
+}
