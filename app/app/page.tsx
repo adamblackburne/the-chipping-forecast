@@ -7,10 +7,12 @@ import { fetchTournamentPair } from "@/lib/espn";
 export const revalidate = 600;
 
 export default async function LandingPage() {
-  const { inPlay, next } = await fetchTournamentPair().catch(() => ({ inPlay: null, next: null }));
+  const { inPlay, next, past } = await fetchTournamentPair().catch(() => ({ inPlay: null, next: null, past: null }));
 
-  const nextDeadlineDisplay = next?.firstTeeTime && next.status === "pre"
-    ? formatDeadline(next.firstTeeTime)
+  // "current" is whatever the user should be acting on right now
+  const current = inPlay ?? next;
+  const deadlineDisplay = current?.firstTeeTime && current.status === "pre"
+    ? formatDeadline(current.firstTeeTime)
     : null;
 
   return (
@@ -26,23 +28,23 @@ export default async function LandingPage() {
           </p>
         </div>
 
-        {/* Tournament info */}
-        {(inPlay || next) && (
-          <div className="flex flex-col gap-3">
-            {/* In-play tournament */}
-            {inPlay && (
-              <Link href="/leaderboard" className="block">
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="w-3 h-0.5 bg-ink inline-block" aria-hidden />
-                    <span className="font-mono text-[10px] uppercase tracking-widest text-ink-2">
-                      This week
-                    </span>
-                  </div>
+        {/* Tournament cards — always show current + past */}
+        <div className="flex flex-col gap-3">
+          {/* Current: live or upcoming */}
+          {current && (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-3 h-0.5 bg-ink inline-block" aria-hidden />
+                <span className="font-mono text-[10px] uppercase tracking-widest text-ink-2">
+                  This week
+                </span>
+              </div>
+              {current.status === "in" ? (
+                <Link href="/leaderboard" className="block">
                   <div className="border border-ink/10 bg-paper rounded-xl p-4">
                     <div className="flex items-start justify-between gap-2 mb-1">
                       <p className="font-display font-bold text-xl text-ink leading-tight">
-                        {inPlay.name}
+                        {current.name}
                       </p>
                       <span className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full border shrink-0 bg-red-600 text-white border-red-600">
                         <span className="relative flex h-1.5 w-1.5">
@@ -52,61 +54,76 @@ export default async function LandingPage() {
                         Live
                       </span>
                     </div>
-                    {inPlay.venue && (
-                      <p className="font-sans text-xs text-ink-2">{inPlay.venue}</p>
+                    {current.venue && (
+                      <p className="font-sans text-xs text-ink-2">{current.venue}</p>
                     )}
                     <p className="font-sans text-xs text-ink underline mt-2 text-right">
                       View Live Leaderboard
                     </p>
                   </div>
-                </div>
-              </Link>
-            )}
-
-            {/* Next tournament — shown as "This week" when nothing is live, or "Upcoming" below the live one */}
-            {next && (
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="w-3 h-0.5 bg-ink inline-block" aria-hidden />
-                  <span className="font-mono text-[10px] uppercase tracking-widest text-ink-2">
-                    {inPlay ? "Upcoming" : "This week"}
-                  </span>
-                </div>
+                </Link>
+              ) : (
                 <div className={[
                   "border rounded-xl p-4",
-                  next.status === "pre" ? "border-accent bg-accent-soft" : "border-ink/10 bg-paper",
+                  current.fieldReady ? "border-accent bg-accent-soft" : "border-ink/10 bg-paper",
                 ].join(" ")}>
                   <div className="flex items-start justify-between gap-2 mb-1">
                     <p className="font-display font-bold text-xl text-ink leading-tight">
-                      {next.name}
+                      {current.name}
                     </p>
-                    <span
-                      className={[
-                        "text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full border shrink-0",
-                        next.status === "in"
-                          ? "bg-ink text-paper border-ink"
-                          : next.status === "pre"
-                          ? "bg-ink text-paper border-ink"
-                          : "bg-paper text-ink-2 border-ink/20",
-                      ].join(" ")}
-                    >
-                      {next.status === "in" ? "Live" : next.status === "pre" ? "Open for picks" : "Finished"}
+                    <span className={[
+                      "text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full border shrink-0",
+                      current.fieldReady
+                        ? "bg-ink text-paper border-ink"
+                        : "bg-paper text-ink-2 border-ink/20",
+                    ].join(" ")}>
+                      {current.fieldReady ? "Open for picks" : "Scheduled"}
                     </span>
                   </div>
-                  {next.venue && (
-                    <p className="font-sans text-xs text-ink-2">{next.venue}</p>
+                  {current.venue && (
+                    <p className="font-sans text-xs text-ink-2">{current.venue}</p>
                   )}
-                  {nextDeadlineDisplay && (
+                  {deadlineDisplay && (
                     <p className="font-sans text-xs text-ink-2 mt-1">
                       Pick deadline:{" "}
-                      <span className="text-ink font-medium">{nextDeadlineDisplay}</span>
+                      <span className="text-ink font-medium">{deadlineDisplay}</span>
                     </p>
                   )}
                 </div>
+              )}
+            </div>
+          )}
+
+          {/* Past: most recently finished tournament */}
+          {past && past.id !== current?.id && (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-3 h-0.5 bg-ink inline-block" aria-hidden />
+                <span className="font-mono text-[10px] uppercase tracking-widest text-ink-2">
+                  Past Tournaments
+                </span>
               </div>
-            )}
-          </div>
-        )}
+              <Link href="/leaderboard" className="block">
+                <div className="border border-ink/10 bg-paper rounded-xl p-4">
+                  <div className="flex items-start justify-between gap-2 mb-1">
+                    <p className="font-display font-bold text-xl text-ink leading-tight">
+                      {past.name}
+                    </p>
+                    <span className="text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full border shrink-0 bg-paper text-ink-2 border-ink/20">
+                      Finished
+                    </span>
+                  </div>
+                  {past.venue && (
+                    <p className="font-sans text-xs text-ink-2">{past.venue}</p>
+                  )}
+                  <p className="font-sans text-xs text-ink underline mt-2 text-right">
+                    View Results
+                  </p>
+                </div>
+              </Link>
+            </div>
+          )}
+        </div>
 
         <Divider />
 

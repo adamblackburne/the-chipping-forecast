@@ -1,4 +1,5 @@
 const ESPN_BASE = "https://site.api.espn.com/apis/site/v2/sports/golf";
+const ESPN_SCOREBOARD = "https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard";
 
 export interface EspnTournament {
   id: string;
@@ -9,6 +10,7 @@ export interface EspnTournament {
   status: "pre" | "in" | "post";
   firstTeeTime: string | null;  // ISO string, null if not yet published
   venue: string;
+  fieldReady: boolean; // true when competitors have been announced
 }
 
 export interface EspnPlayer {
@@ -46,9 +48,17 @@ interface RawEvent {
   }>;
 }
 
+interface RawLinescore {
+  period?: number;
+  value?: number | null;
+  displayValue?: string;
+  linescores?: RawLinescore[];
+}
+
 interface RawCompetitor {
   id?: string;
-  sortOrder?: number;
+  order?: number;        // scoreboard format: 1-based ranking
+  sortOrder?: number;    // leaderboard format
   athlete?: {
     id?: string;
     displayName?: string;
@@ -62,8 +72,8 @@ interface RawCompetitor {
     thru?: number;
     period?: number;
   };
-  score?: { value?: number; displayValue?: string };
-  linescores?: unknown[];
+  score?: { value?: number; displayValue?: string } | string;
+  linescores?: RawLinescore[];
 }
 
 function parseStatus(raw: string | undefined): "pre" | "in" | "post" {
@@ -97,11 +107,6 @@ export async function fetchCurrentTournament(): Promise<EspnTournament | null> {
   return next ?? inPlay;
 }
 
-/**
- * Fetch both the in-progress tournament (if any) and the next upcoming tournament open for picks.
- * - inPlay: the tournament currently underway (status "in"), or null
- * - next: the nearest "pre" tournament available for picks, or null (falls back to most recent "post" only when nothing else exists)
- */
 function mockPreTournament(competitors: RawCompetitor[] = []): RawEvent {
   const start = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString();
   return {
@@ -115,41 +120,73 @@ function mockPreTournament(competitors: RawCompetitor[] = []): RawEvent {
   };
 }
 
+/** Fetch the full season schedule from the scoreboard endpoint. */
+async function fetchSeasonEvents(): Promise<RawEvent[]> {
+  const now = new Date();
+  const start = `${now.getFullYear()}0101`;
+  const end = `${now.getFullYear()}1231`;
+  const res = await fetch(
+    `${ESPN_SCOREBOARD}?dates=${start}-${end}`,
+    { next: { revalidate: 3600 } }
+  );
+  if (!res.ok) return [];
+  const data = await res.json() as { events?: RawEvent[] };
+  return data.events ?? [];
+}
+
 export async function fetchTournamentPair(): Promise<{
   inPlay: EspnTournament | null;
   next: EspnTournament | null;
+  past: EspnTournament | null;
 }> {
-  const res = await fetch(`${ESPN_BASE}/leaderboard`, { next: { revalidate: 600 } });
-  if (!res.ok) return { inPlay: null, next: null };
-  const data = await res.json() as { events?: RawEvent[] };
-  const events: RawEvent[] = data.events ?? [];
+  // Phase 1: full season calendar to identify which events we care about
+  const seasonEvents = await fetchSeasonEvents();
 
-  if (process.env.MOCK_NEXT_TOURNAMENT === "1") {
-    const realEvent = events.find((e) => parseStatus(e.status?.type?.state) === "in") ?? events[0];
-    const realCompetitors = realEvent?.competitions?.[0]?.competitors ?? [];
-    events.push(mockPreTournament(realCompetitors));
-  }
-
-  const inPlay = events.find((e) => parseStatus(e.status?.type?.state) === "in") ?? null;
-
-  const upcoming = events
+  const inPlayRaw = seasonEvents.find((e) => parseStatus(e.status?.type?.state) === "in") ?? null;
+  const upcomingRaw = seasonEvents
     .filter((e) => parseStatus(e.status?.type?.state) === "pre")
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0] ?? null;
+  const pastRaw = seasonEvents
+    .filter((e) => parseStatus(e.status?.type?.state) === "post")
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0] ?? null;
 
-  // Off-season fallback: show most recent finished tournament
-  const fallback = !upcoming
-    ? (events
-        .filter((e) => parseStatus(e.status?.type?.state) === "post")
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0] ?? null)
-    : null;
-
-  return {
-    inPlay: inPlay ? adaptTournament(inPlay) : null,
-    next: upcoming ? adaptTournament(upcoming) : (fallback ? adaptTournament(fallback) : null),
+  // Phase 2: fetch leaderboard for active event (venue) + upcoming event (field check) in parallel
+  const fetchLeaderboardEvent = async (id?: string): Promise<RawEvent | undefined> => {
+    const url = id ? `${ESPN_BASE}/leaderboard?event=${id}` : `${ESPN_BASE}/leaderboard`;
+    const res = await fetch(url, { next: { revalidate: 600 } });
+    if (!res.ok) return undefined;
+    const data = await res.json() as { events?: RawEvent[] };
+    return data.events?.[0];
   };
+
+  const [activeLeaderboard, upcomingLeaderboard] = await Promise.all([
+    fetchLeaderboardEvent(inPlayRaw?.id),
+    upcomingRaw ? fetchLeaderboardEvent(upcomingRaw.id) : Promise.resolve(undefined),
+  ]);
+
+  if (process.env.MOCK_NEXT_TOURNAMENT === "1") {
+    const realCompetitors = activeLeaderboard?.competitions?.[0]?.competitors ?? [];
+    seasonEvents.push(mockPreTournament(realCompetitors));
+  }
+
+  // Enrich season event with leaderboard data (venue + competitors)
+  const enrich = (raw: RawEvent, lb?: RawEvent): RawEvent =>
+    lb ? { ...raw, competitions: lb.competitions } : raw;
+
+  const upcomingCompetitors = upcomingLeaderboard?.competitions?.[0]?.competitors ?? [];
+  const fieldReady = upcomingCompetitors.length > 0;
+
+  const inPlay = inPlayRaw ? adaptTournament(enrich(inPlayRaw, activeLeaderboard)) : null;
+  const upcoming = upcomingRaw ? adaptTournament(enrich(upcomingRaw, upcomingLeaderboard), fieldReady) : null;
+  const past = pastRaw ? adaptTournament(pastRaw) : null;
+
+  // next: for pick flows — live first, then upcoming, then off-season fallback to past
+  const next = inPlay ?? upcoming ?? past;
+
+  return { inPlay, next, past };
 }
 
-function adaptTournament(e: RawEvent): EspnTournament {
+function adaptTournament(e: RawEvent, fieldReady = true): EspnTournament {
   const comp = e.competitions?.[0];
   return {
     id: e.id,
@@ -160,6 +197,7 @@ function adaptTournament(e: RawEvent): EspnTournament {
     status: parseStatus(e.status?.type?.state),
     firstTeeTime: comp?.startDate ?? null,
     venue: comp?.venue?.fullName ?? "",
+    fieldReady,
   };
 }
 
@@ -191,16 +229,47 @@ export async function fetchTournamentField(tournamentId: string): Promise<EspnPl
     .filter((p): p is EspnPlayer => p !== null);
 }
 
+function getScoreDisplayValue(score: RawCompetitor["score"]): string | undefined {
+  if (!score) return undefined;
+  if (typeof score === "string") return score;
+  return score.displayValue;
+}
+
+function detectPlayoff(competitors: RawCompetitor[]): {
+  winner: { displayName: string; shortName: string } | null;
+  losers: { displayName: string; shortName: string }[];
+} {
+  let winner: { displayName: string; shortName: string } | null = null;
+  const losers: { displayName: string; shortName: string }[] = [];
+  for (const c of competitors) {
+    const ls5 = c.linescores?.find((ls) => ls.period === 5);
+    if (!ls5) continue;
+    const player = { displayName: c.athlete?.displayName ?? "Unknown", shortName: c.athlete?.shortName ?? "" };
+    if ((ls5.linescores?.length ?? 0) > 0) {
+      winner = player;
+    } else {
+      losers.push(player);
+    }
+  }
+  return { winner, losers };
+}
+
 /** Fetch live leaderboard for a tournament. */
-export async function fetchLeaderboard(tournamentId: string): Promise<{
+export async function fetchLeaderboard(tournamentId: string, isFinal = false): Promise<{
   entries: EspnLeaderboardEntry[];
   lastCutPosition: number;
+  playoff: { winner: { displayName: string; shortName: string }; losers: { displayName: string; shortName: string }[] } | null;
 }> {
   const res = await fetch(
     `${ESPN_BASE}/leaderboard?event=${tournamentId}`,
-    { next: { revalidate: 120 } }
+    isFinal ? { cache: "no-store" } : { next: { revalidate: 120 } }
   );
-  if (!res.ok) return { entries: [], lastCutPosition: 0 };
+
+  if (!res.ok) {
+    // Leaderboard endpoint unavailable for past tournaments — fall back to scoreboard
+    return fetchLeaderboardFromScoreboard(tournamentId);
+  }
+
   const data = await res.json() as { events?: RawEvent[] };
   const event = data.events?.find((e) => e.id === tournamentId) ?? data.events?.[0];
   const competitors = event?.competitions?.[0]?.competitors ?? [];
@@ -219,7 +288,7 @@ export async function fetchLeaderboard(tournamentId: string): Promise<{
         position: posId !== null && !isNaN(posId) ? posId : null,
         positionDisplay: c.status?.position?.displayName ?? c.status?.displayValue ?? "-",
         status: parsePlayerStatus(statusName),
-        score: parseScoreToPar(c.score?.displayValue),
+        score: parseScoreToPar(getScoreDisplayValue(c.score)),
         thru: isFinished ? "F" : (c.status?.displayThru ?? null),
         worldRanking: 999,
         _sortOrder: c.sortOrder ?? 9999,
@@ -236,11 +305,73 @@ export async function fetchLeaderboard(tournamentId: string): Promise<{
       return entry;
     });
 
-  // Find the last position that made the cut
   const madeCut = entries
     .filter((e) => e.status === "active" || e.status === "complete")
     .map((e) => e.position ?? 0);
   const lastCutPosition = madeCut.length > 0 ? Math.max(...madeCut) : 0;
 
-  return { entries, lastCutPosition };
+  const { winner, losers } = detectPlayoff(competitors);
+  const playoff = winner ? { winner, losers } : null;
+
+  return { entries, lastCutPosition, playoff };
+}
+
+async function fetchLeaderboardFromScoreboard(tournamentId: string): Promise<{
+  entries: EspnLeaderboardEntry[];
+  lastCutPosition: number;
+  playoff: { winner: { displayName: string; shortName: string }; losers: { displayName: string; shortName: string }[] } | null;
+}> {
+  const seasonEvents = await fetchSeasonEvents();
+  const event = seasonEvents.find((e) => e.id === tournamentId);
+  if (!event) return { entries: [], lastCutPosition: 0, playoff: null };
+
+  const competitors = event.competitions?.[0]?.competitors ?? [];
+
+  // Scoreboard format: score is a plain string, status is empty, order is 1-based rank
+  const parsed = competitors
+    .map((c: RawCompetitor): (EspnLeaderboardEntry & { _order: number }) | null => {
+      const id = c.athlete?.id ?? c.id;
+      if (!id) return null;
+      const scoreStr = getScoreDisplayValue(c.score);
+      const score = parseScoreToPar(scoreStr);
+      return {
+        playerId: id,
+        displayName: c.athlete?.displayName ?? "Unknown",
+        shortName: c.athlete?.shortName ?? "",
+        position: c.order ?? null,
+        positionDisplay: "",
+        status: "complete",
+        score,
+        thru: "F",
+        worldRanking: 999,
+        _order: c.order ?? 9999,
+      };
+    })
+    .filter((e): e is EspnLeaderboardEntry & { _order: number } => e !== null)
+    .sort((a, b) => a._order - b._order);
+
+  // Compute position display accounting for ties
+  let pos = 1;
+  let i = 0;
+  while (i < parsed.length) {
+    const currentScore = parsed[i].score;
+    let j = i;
+    while (j < parsed.length && parsed[j].score === currentScore) j++;
+    const count = j - i;
+    const display = count > 1 ? `T${pos}` : `${pos}`;
+    for (let k = i; k < j; k++) {
+      parsed[k].positionDisplay = display;
+      parsed[k].position = pos;
+    }
+    pos += count;
+    i = j;
+  }
+
+  const entries = parsed.map(({ _order: _, ...e }) => e);
+  const lastCutPosition = parsed.length > 0 ? (parsed[parsed.length - 1].position ?? 0) : 0;
+
+  const { winner, losers } = detectPlayoff(competitors);
+  const playoff = winner ? { winner, losers } : null;
+
+  return { entries, lastCutPosition, playoff };
 }

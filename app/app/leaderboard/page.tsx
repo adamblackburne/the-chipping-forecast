@@ -12,12 +12,16 @@ function formatScore(score: number | null): string {
 }
 
 export default async function LeaderboardPage() {
-  const { inPlay } = await fetchTournamentPair().catch(() => ({
+  const { inPlay, next, past } = await fetchTournamentPair().catch(() => ({
     inPlay: null,
     next: null,
+    past: null,
   }));
 
-  if (!inPlay) {
+  const tournament = inPlay ?? (next?.status === "post" ? next : past);
+  const isFinal = !inPlay && tournament?.status === "post";
+
+  if (!tournament) {
     return (
       <MobileShell>
         <TopBar title="Leaderboard" back="/" />
@@ -34,14 +38,15 @@ export default async function LeaderboardPage() {
     );
   }
 
-  const { entries } = await fetchLeaderboard(inPlay.id).catch(() => ({
+  const { entries, playoff } = await fetchLeaderboard(tournament.id, isFinal).catch(() => ({
     entries: [],
     lastCutPosition: 0,
+    playoff: null,
   }));
 
   return (
     <MobileShell>
-      <TopBar title={inPlay.shortName} back="/" />
+      <TopBar title={tournament.shortName} back="/" />
 
       <main className="flex flex-col flex-1 overflow-y-auto">
         {/* Event header */}
@@ -49,14 +54,37 @@ export default async function LeaderboardPage() {
           <p className="font-mono text-[10px] uppercase tracking-widest text-ink-3">
             Full field · {entries.length} golfers
           </p>
-          <span className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full bg-red-600 text-white shrink-0">
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
-              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-white" />
+          {isFinal ? (
+            <span className="text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full border shrink-0 bg-paper text-ink-2 border-ink/20">
+              Final
             </span>
-            Live
-          </span>
+          ) : (
+            <span className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full bg-red-600 text-white shrink-0">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-white" />
+              </span>
+              Live
+            </span>
+          )}
         </div>
+
+        {/* Playoff banner */}
+        {playoff && (
+          <div className="px-4 py-3 border-b border-line-soft bg-paper-2 shrink-0">
+            <p className="font-mono text-[10px] uppercase tracking-widest text-ink-3 mb-1">
+              Playoff result
+            </p>
+            <p className="font-sans text-sm font-semibold text-ink">
+              {playoff.winner.displayName} won in a sudden-death playoff
+            </p>
+            {playoff.losers.length > 0 && (
+              <p className="font-sans text-xs text-ink-2 mt-0.5">
+                defeating {playoff.losers.map((l) => l.displayName).join(", ")}
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Column headers */}
         <div className="grid grid-cols-[3.5rem_1fr_3.5rem_3rem] gap-x-2 px-4 py-2 border-b border-line-soft bg-paper shrink-0">
