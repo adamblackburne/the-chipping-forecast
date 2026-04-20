@@ -1,3 +1,7 @@
+<<<<<<< HEAD
 # Environment variables
 app/.env.local
 app/.env*.local
+=======
+.vercel
+>>>>>>> 2525aa77afdafdc1d86660940130578ffb0449c3
