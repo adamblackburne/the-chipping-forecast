@@ -260,6 +260,7 @@ function detectPlayoff(competitors: RawCompetitor[]): {
 export async function fetchLeaderboard(tournamentId: string, isFinal = false): Promise<{
   entries: EspnLeaderboardEntry[];
   lastCutPosition: number;
+  currentRound: number;
   playoff: { winner: { displayName: string; shortName: string }; losers: { displayName: string; shortName: string }[] } | null;
 }> {
   const res = await fetch(
@@ -312,20 +313,26 @@ export async function fetchLeaderboard(tournamentId: string, isFinal = false): P
     .map((e) => e.position ?? 0);
   const lastCutPosition = madeCut.length > 0 ? Math.max(...madeCut) : 0;
 
+  const currentRound = competitors.reduce((max, c) => {
+    if (parsePlayerStatus(c.status?.type?.name) === "cut") return max;
+    return Math.max(max, c.status?.period ?? 0);
+  }, 0);
+
   const { winner, losers } = detectPlayoff(competitors);
   const playoff = winner ? { winner, losers } : null;
 
-  return { entries, lastCutPosition, playoff };
+  return { entries, lastCutPosition, currentRound, playoff };
 }
 
 async function fetchLeaderboardFromScoreboard(tournamentId: string): Promise<{
   entries: EspnLeaderboardEntry[];
   lastCutPosition: number;
+  currentRound: number;
   playoff: { winner: { displayName: string; shortName: string }; losers: { displayName: string; shortName: string }[] } | null;
 }> {
   const seasonEvents = await fetchSeasonEvents();
   const event = seasonEvents.find((e) => e.id === tournamentId);
-  if (!event) return { entries: [], lastCutPosition: 0, playoff: null };
+  if (!event) return { entries: [], lastCutPosition: 0, currentRound: 0, playoff: null };
 
   const competitors = event.competitions?.[0]?.competitors ?? [];
 
@@ -375,5 +382,5 @@ async function fetchLeaderboardFromScoreboard(tournamentId: string): Promise<{
   const { winner, losers } = detectPlayoff(competitors);
   const playoff = winner ? { winner, losers } : null;
 
-  return { entries, lastCutPosition, playoff };
+  return { entries, lastCutPosition, currentRound: 4, playoff };
 }

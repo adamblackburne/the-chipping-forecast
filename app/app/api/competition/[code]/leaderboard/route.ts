@@ -46,7 +46,7 @@ export async function GET(req: NextRequest, { params }: Props) {
 
   const { data: comp } = await supabase
     .from("competitions")
-    .select("id, tournament_espn_id, tournament_name, status")
+    .select("id, tournament_espn_id, tournament_name, status, cut_position_snapshot")
     .eq("join_code", code.toUpperCase())
     .single();
 
@@ -73,9 +73,19 @@ export async function GET(req: NextRequest, { params }: Props) {
     .in("participant_id", participants.map((p) => p.id))
     .order("pick_slot", { ascending: true });
 
-  const { entries, lastCutPosition } = comp.tournament_espn_id
+  const { entries, lastCutPosition: liveCutPosition, currentRound } = comp.tournament_espn_id
     ? await fetchLeaderboard(comp.tournament_espn_id)
-    : { entries: [], lastCutPosition: 0 };
+    : { entries: [], lastCutPosition: 0, currentRound: 0 };
+
+  // Snapshot the cut position once R3 begins so it can't drift as R3/R4 positions shift.
+  let lastCutPosition: number = comp.cut_position_snapshot ?? liveCutPosition;
+  if (comp.cut_position_snapshot === null && currentRound >= 3 && liveCutPosition > 0) {
+    lastCutPosition = liveCutPosition;
+    await supabase
+      .from("competitions")
+      .update({ cut_position_snapshot: liveCutPosition })
+      .eq("id", comp.id);
+  }
 
   const entryMap = new Map(entries.map((e) => [e.playerId, e]));
 
