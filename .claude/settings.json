@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c ' *)",
+      "Bash(python3 -c \"import os; print\\(os.listdir\\('/Users/adamblackburne/Documents/Documents - Adam\\\\u2019s MacBook/'\\)\\)\")",
+      "Bash(python3 -c \"import os; print\\(os.path.exists\\('/Users/adamblackburne/Documents/Documents - Adam\\\\u2019s MacBook/Vibe Coding/the-chipping-forecast/app/node_modules'\\)\\)\")",
+      "Bash(npm run *)"
+    ]
+  }
+}
