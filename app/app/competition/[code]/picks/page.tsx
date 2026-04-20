@@ -21,6 +21,15 @@ interface PlayerWithRank extends RankedPlayer {
 
 type Picks = Record<1 | 2 | 3 | 4, RankedPlayer | null>;
 
+const SLOTS = [1, 2, 3, 4] as const;
+
+function firstUnpickedSlot(picks: Picks): 1 | 2 | 3 | 4 | null {
+  for (const slot of SLOTS) {
+    if (!picks[slot]) return slot;
+  }
+  return null;
+}
+
 export default function PicksPage({ params }: Props) {
   const { code } = use(params);
   const router = useRouter();
@@ -28,6 +37,7 @@ export default function PicksPage({ params }: Props) {
 
   const [players, setPlayers] = useState<PlayerWithRank[]>([]);
   const [picks, setPicks] = useState<Picks>({ 1: null, 2: null, 3: null, 4: null });
+  const [expandedSlot, setExpandedSlot] = useState<1 | 2 | 3 | 4 | null>(1);
   const [deadline, setDeadline] = useState<Date>(new Date(Date.now() + 86400000));
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -79,6 +89,7 @@ export default function PicksPage({ params }: Props) {
             }
           }
           setPicks(restored);
+          setExpandedSlot(firstUnpickedSlot(restored));
         }
       } catch {
         setError("Failed to load player data");
@@ -90,8 +101,13 @@ export default function PicksPage({ params }: Props) {
   }, [sessionToken, upperCode]);
 
   const handleSelect = useCallback(async (slot: 1 | 2 | 3 | 4, player: RankedPlayer) => {
-    setPicks((prev) => ({ ...prev, [slot]: player }));
-    // Optimistically save
+    setPicks((prev) => {
+      const next = { ...prev, [slot]: player };
+      const nextOpen = firstUnpickedSlot(next);
+      setExpandedSlot(nextOpen);
+      return next;
+    });
+
     if (!sessionToken) return;
     try {
       await fetch("/api/picks", {
@@ -114,7 +130,7 @@ export default function PicksPage({ params }: Props) {
   }, [sessionToken, upperCode]);
 
   async function handleSubmit() {
-    const allFilled = [1, 2, 3, 4].every((s) => picks[s as 1 | 2 | 3 | 4] !== null);
+    const allFilled = SLOTS.every((s) => picks[s] !== null);
     if (!allFilled) {
       setError("Please pick one golfer from each tier");
       return;
@@ -126,10 +142,6 @@ export default function PicksPage({ params }: Props) {
   const pickCount = Object.values(picks).filter(Boolean).length;
   const isPastDeadline = new Date() >= deadline;
   const allPicked = pickCount === 4;
-
-  const tiers: Array<{ slot: 1 | 2 | 3 | 4 }> = [
-    { slot: 1 }, { slot: 2 }, { slot: 3 }, { slot: 4 },
-  ];
 
   return (
     <MobileShell>
@@ -155,7 +167,7 @@ export default function PicksPage({ params }: Props) {
       ) : (
         <>
           <div className="flex-1 overflow-y-auto">
-            {tiers.map(({ slot }) => {
+            {SLOTS.map((slot) => {
               const tierPlayers = filterByBracket(players, slot);
               return (
                 <TierSection
@@ -165,6 +177,10 @@ export default function PicksPage({ params }: Props) {
                   selectedPlayer={picks[slot]}
                   onSelect={(player) => handleSelect(slot, player)}
                   deadline={deadline}
+                  isExpanded={expandedSlot === slot}
+                  onToggleExpand={() =>
+                    setExpandedSlot((prev) => (prev === slot ? null : slot))
+                  }
                 />
               );
             })}

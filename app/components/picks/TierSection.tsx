@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { RankedPlayer, bracketLabel } from "@/lib/datagolf";
-import { Chip } from "@/components/ui/Chip";
 import { GolferRow } from "./GolferRow";
 
 interface TierSectionProps {
@@ -11,11 +10,21 @@ interface TierSectionProps {
   selectedPlayer: RankedPlayer | null;
   onSelect: (player: RankedPlayer) => void;
   deadline: Date;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
 }
 
 const INITIAL_SHOW = 10;
 
-export function TierSection({ slot, players, selectedPlayer, onSelect, deadline }: TierSectionProps) {
+export function TierSection({
+  slot,
+  players,
+  selectedPlayer,
+  onSelect,
+  deadline,
+  isExpanded,
+  onToggleExpand,
+}: TierSectionProps) {
   const [showAll, setShowAll] = useState(false);
   const isPastDeadline = new Date() >= deadline;
   const visible = showAll ? players : players.slice(0, INITIAL_SHOW);
@@ -23,11 +32,13 @@ export function TierSection({ slot, players, selectedPlayer, onSelect, deadline 
 
   return (
     <div>
-      {/* Sticky section header */}
-      <div
+      {/* Section divider — always visible, tappable to toggle */}
+      <button
+        type="button"
+        onClick={onToggleExpand}
         className={[
-          "sticky top-0 z-10 flex items-center justify-between",
-          "px-4 py-2 border-b border-ink bg-paper",
+          "w-full sticky top-0 z-10 flex items-center justify-between",
+          "px-4 py-2 border-b border-ink bg-paper text-left",
           slot > 1 ? "border-t" : "",
         ].join(" ")}
       >
@@ -36,39 +47,57 @@ export function TierSection({ slot, players, selectedPlayer, onSelect, deadline 
           <span className="font-mono text-[10px] uppercase tracking-widest text-ink-2">
             {bracketLabel(slot)}
           </span>
+          {!isExpanded && selectedPlayer && (
+            <span className="font-sans text-xs text-ink ml-1">
+              — {selectedPlayer.name}
+            </span>
+          )}
         </div>
-        {selectedPlayer ? (
-          <Chip variant="accent">✓ picked</Chip>
-        ) : (
-          <span className="text-xs text-ink-3 font-sans">
-            choose 1 of {players.length}
-          </span>
-        )}
-      </div>
-
-      {/* Player list */}
-      <div>
-        {visible.map((player) => (
-          <GolferRow
-            key={player.id}
-            player={player}
-            selected={selectedPlayer?.id === player.id}
-            onSelect={onSelect}
-            disabled={isPastDeadline}
-          />
-        ))}
-
-        {hasMore && (
-          <button
-            type="button"
-            onClick={() => setShowAll(true)}
-            className="w-full py-3 text-center text-sm text-ink-2 font-sans border border-dashed border-ink-3 rounded-lg mx-3 my-2"
-            style={{ width: "calc(100% - 24px)" }}
+        <div className="flex items-center gap-2">
+          {selectedPlayer ? (
+            <span className="font-mono text-[10px] uppercase tracking-widest text-accent">
+              ✓ picked
+            </span>
+          ) : (
+            <span className="text-xs text-ink-3 font-sans">
+              {isExpanded ? `choose 1 of ${players.length}` : "tap to choose"}
+            </span>
+          )}
+          <span
+            className="text-ink-3 text-xs transition-transform duration-200"
+            style={{ transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)" }}
+            aria-hidden
           >
-            load {players.length - INITIAL_SHOW} more ↓
-          </button>
-        )}
-      </div>
+            ▾
+          </span>
+        </div>
+      </button>
+
+      {/* Player list — only rendered when expanded */}
+      {isExpanded && (
+        <div>
+          {visible.map((player) => (
+            <GolferRow
+              key={player.id}
+              player={player}
+              selected={selectedPlayer?.id === player.id}
+              onSelect={onSelect}
+              disabled={isPastDeadline}
+            />
+          ))}
+
+          {hasMore && (
+            <button
+              type="button"
+              onClick={() => setShowAll(true)}
+              className="w-full py-3 text-center text-sm text-ink-2 font-sans border border-dashed border-ink-3 rounded-lg mx-3 my-2"
+              style={{ width: "calc(100% - 24px)" }}
+            >
+              load {players.length - INITIAL_SHOW} more ↓
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

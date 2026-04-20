@@ -143,7 +143,7 @@ export async function fetchTournamentPair(): Promise<{
   const seasonEvents = await fetchSeasonEvents();
 
   const inPlayRaw = seasonEvents.find((e) => parseStatus(e.status?.type?.state) === "in") ?? null;
-  const upcomingRaw = seasonEvents
+  let upcomingRaw = seasonEvents
     .filter((e) => parseStatus(e.status?.type?.state) === "pre")
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0] ?? null;
   const pastRaw = seasonEvents
@@ -159,21 +159,23 @@ export async function fetchTournamentPair(): Promise<{
     return data.events?.[0];
   };
 
-  const [activeLeaderboard, upcomingLeaderboard] = await Promise.all([
+  const [activeLeaderboard, upcomingLeaderboard_] = await Promise.all([
     fetchLeaderboardEvent(inPlayRaw?.id),
     upcomingRaw ? fetchLeaderboardEvent(upcomingRaw.id) : Promise.resolve(undefined),
   ]);
 
+  let upcomingLeaderboard = upcomingLeaderboard_;
   if (process.env.MOCK_NEXT_TOURNAMENT === "1") {
     const realCompetitors = activeLeaderboard?.competitions?.[0]?.competitors ?? [];
-    seasonEvents.push(mockPreTournament(realCompetitors));
+    upcomingRaw = mockPreTournament(realCompetitors);
+    upcomingLeaderboard = undefined;
   }
 
   // Enrich season event with leaderboard data (venue + competitors)
   const enrich = (raw: RawEvent, lb?: RawEvent): RawEvent =>
     lb ? { ...raw, competitions: lb.competitions } : raw;
 
-  const upcomingCompetitors = upcomingLeaderboard?.competitions?.[0]?.competitors ?? [];
+  const upcomingCompetitors = (upcomingLeaderboard ?? upcomingRaw)?.competitions?.[0]?.competitors ?? [];
   const fieldReady = upcomingCompetitors.length > 0;
 
   const inPlay = inPlayRaw ? adaptTournament(enrich(inPlayRaw, activeLeaderboard)) : null;

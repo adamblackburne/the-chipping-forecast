@@ -85,23 +85,23 @@ function GroupIcon({ active }: { active: boolean }) {
   if (active) {
     return (
       <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden fill="currentColor">
-        {/* Primary person */}
+        {/* Secondary person (behind) */}
+        <circle cx="17.5" cy="7" r="2.5" />
+        <path d="M12 21a5.5 5.5 0 0 1 11 0z" />
+        {/* Primary person (front) */}
         <circle cx="9" cy="7" r="3.5" />
-        <path d="M1.5 21a7.5 7.5 0 0 0 15 0z" />
-        {/* Secondary person */}
-        <circle cx="18" cy="6.5" r="2.5" />
-        <path d="M13 21a5.5 5.5 0 0 0 11 0z" />
+        <path d="M1.5 21a7.5 7.5 0 0 1 15 0z" />
       </svg>
     );
   }
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-      {/* Primary person */}
+      {/* Secondary person (behind) */}
+      <circle cx="17.5" cy="7" r="2.5" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M12 21a5.5 5.5 0 0 1 11 0" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      {/* Primary person (front) */}
       <circle cx="9" cy="7" r="3.5" stroke="currentColor" strokeWidth="1.75" />
-      <path d="M1.5 21a7.5 7.5 0 0 0 15 0" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
-      {/* Secondary person */}
-      <circle cx="18" cy="6.5" r="2.5" stroke="currentColor" strokeWidth="1.5" />
-      <path d="M13 21a5.5 5.5 0 0 0 11 0" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M1.5 21a7.5 7.5 0 0 1 15 0" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
     </svg>
   );
 }
