@@ -27,7 +27,16 @@
       "Bash(python3 -c \"import os; docs = '/Users/adamblackburne/Documents'; items = os.listdir\\(docs\\); macbook = [x for x in items if 'MacBook' in x][0]; print\\(repr\\(macbook\\)\\)\")",
       "Bash(python3 -c \"import os; docs = '/Users/adamblackburne/Documents'; macbook = [x for x in os.listdir\\(docs\\) if 'MacBook' in x and 'old' not in x][0]; project = os.path.join\\(docs, macbook, 'Vibe Coding', 'the-chipping-forecast'\\); print\\(repr\\(project\\)\\)\")",
       "Bash(git -C ~/projects/chipping-forecast status --short)",
-      "Bash(git -C ~/projects/chipping-forecast remote -v)"
+      "Bash(git -C ~/projects/chipping-forecast remote -v)",
+      "WebSearch",
+      "Bash(curl -s \"https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard\")",
+      "Bash(python3 -c \" import json, sys data = json.load\\(sys.stdin\\) events = data.get\\('events', []\\) for e in events: print\\(e.get\\('id'\\), e.get\\('name'\\), e.get\\('status', {}\\).get\\('type', {}\\).get\\('state'\\)\\) \")",
+      "Bash(curl -s \"https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard?dates=20260421-20260510\")",
+      "Bash(curl -s \"https://site.api.espn.com/apis/site/v2/sports/golf/leaderboard?event=401811943\")",
+      "Bash(curl -s \"https://sports.core.api.espn.com/v2/sports/golf/leagues/pga/events/401811943/competitions/401811943/odds\")",
+      "Bash(curl -s \"https://sports.core.api.espn.com/v2/sports/golf/leagues/pga/events/401811942/competitions/401811942/odds\")",
+      "Bash(awk '{print $2}')",
+      "Bash(xargs kill *)"
     ],
     "additionalDirectories": [
       "/Users/adamblackburne/Documents/Documents - Adam's MacBook/Vibe Coding/the-chipping-forecast/app/supabase/migrations",

@@ -111,6 +111,12 @@ function parseScoreToPar(displayValue: string | undefined): number | null {
   return isNaN(parsed) ? null : parsed;
 }
 
+/** Fetch the full season schedule as a list of tournaments. */
+export async function fetchFullSchedule(): Promise<EspnTournament[]> {
+  const events = await fetchTourSchedule();
+  return events.map((e) => adaptTournament(e, false));
+}
+
 /** Fetch the current/upcoming PGA Tour event. */
 export async function fetchCurrentTournament(): Promise<EspnTournament | null> {
   const { inPlay, next } = await fetchTournamentPair();

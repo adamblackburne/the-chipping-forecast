@@ -141,6 +141,16 @@ export default async function LandingPage() {
           </Link>
         </div>
 
+        {/* Schedule link */}
+        <div className="flex justify-center">
+          <Link
+            href="/schedule#next-event"
+            className="font-mono text-xs text-ink-2 underline underline-offset-2 hover:text-ink transition-colors"
+          >
+            View full 2026 schedule →
+          </Link>
+        </div>
+
         {/* Footer */}
         <p className="mt-auto text-xs text-ink-3 text-center font-sans pb-4">
           no accounts · no apps · just a link
