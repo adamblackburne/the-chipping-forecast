@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabase";
 import { fetchLeaderboard } from "@/lib/espn";
 import { scoreParticipant } from "@/lib/scoring";
 import type { PickResult } from "@/lib/scoring";
+import { deriveCompStatus } from "@/lib/status";
 
 interface Props {
   params: Promise<{ code: string }>;
@@ -46,7 +47,7 @@ export async function GET(req: NextRequest, { params }: Props) {
 
   const { data: comp } = await supabase
     .from("competitions")
-    .select("id, tournament_espn_id, tournament_name, status, cut_position_snapshot")
+    .select("id, tournament_espn_id, tournament_name, cut_position_snapshot")
     .eq("join_code", code.toUpperCase())
     .single();
 
@@ -73,9 +74,9 @@ export async function GET(req: NextRequest, { params }: Props) {
     .in("participant_id", participants.map((p) => p.id))
     .order("pick_slot", { ascending: true });
 
-  const { entries, lastCutPosition: liveCutPosition, currentRound } = comp.tournament_espn_id
+  const { entries, lastCutPosition: liveCutPosition, currentRound, espnStatus } = comp.tournament_espn_id
     ? await fetchLeaderboard(comp.tournament_espn_id)
-    : { entries: [], lastCutPosition: 0, currentRound: 0 };
+    : { entries: [], lastCutPosition: 0, currentRound: 0, espnStatus: "pre" as const };
 
   // Snapshot the cut position once R3 begins so it can't drift as R3/R4 positions shift.
   let lastCutPosition: number = comp.cut_position_snapshot ?? liveCutPosition;
@@ -143,10 +144,13 @@ export async function GET(req: NextRequest, { params }: Props) {
     picks,
   }));
 
+  const derivedStatus = deriveCompStatus(espnStatus, entries.length > 0);
+
   return NextResponse.json({
     members,
     tournamentName: comp.tournament_name,
     tournamentId: comp.tournament_espn_id,
-    isLive: comp.status === "live",
+    isLive: derivedStatus === "in_progress",
+    isFinal: derivedStatus === "final",
   });
 }

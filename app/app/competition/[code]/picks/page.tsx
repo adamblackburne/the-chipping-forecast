@@ -70,15 +70,16 @@ export default function PicksPage({ params }: Props) {
         const compData = await competitionRes.json();
         const picksData = await existingPicksRes.json();
 
-        if (compData.competition?.status === "awaiting_tournament") {
+        const ds: string = compData.derivedStatus ?? "awaiting_tournament";
+        if (ds === "awaiting_tournament") {
           setAwaitingTournament(true);
           return;
         }
-        const loadedPlayers = playersData.players ?? [];
-        if (loadedPlayers.length === 0) {
+        if (ds === "scheduled") {
           setFieldScheduled(true);
           return;
         }
+        const loadedPlayers = playersData.players ?? [];
         setPlayers(loadedPlayers);
         if (compData.competition?.pick_deadline) {
           setDeadline(new Date(compData.competition.pick_deadline));

@@ -61,17 +61,11 @@ export default function SetupPage({ params }: Props) {
       setPersonalUrl(url);
       saveSession({ sessionToken: token, displayName: name, competitionCode: upperCode });
 
-      // Check whether picks are available (tournament linked + field published)
+      // Check whether picks are available using the derived status from ESPN
       const compRes = await fetch(`/api/competition/${upperCode}`);
       const compData = await compRes.json();
-      const compStatus = compData.competition?.status;
-      let picksUnavailable = compStatus === "awaiting_tournament";
-      if (!picksUnavailable && compStatus === "open") {
-        const playersRes = await fetch(`/api/players?code=${upperCode}`);
-        const playersData = await playersRes.json();
-        if (!(playersData.players?.length > 0)) picksUnavailable = true;
-      }
-      setAwaitingTournament(picksUnavailable);
+      const ds: string = compData.derivedStatus ?? "awaiting_tournament";
+      setAwaitingTournament(ds === "awaiting_tournament" || ds === "scheduled");
 
       setStep("link");
     } catch (e) {

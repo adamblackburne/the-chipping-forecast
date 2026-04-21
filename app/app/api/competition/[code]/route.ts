@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase, createServiceClient } from "@/lib/supabase";
 import { fetchTournamentPair } from "@/lib/espn";
+import { deriveCompStatus, type DerivedCompStatus } from "@/lib/status";
 
 interface Props {
   params: Promise<{ code: string }>;
@@ -22,8 +23,11 @@ export async function GET(_req: NextRequest, { params }: Props) {
   // When a group exists but no tournament was announced yet, check ESPN on every
   // page load (responses are cached for 10 min). As soon as a "pre" tournament
   // appears we link it to the group and flip status to "open".
+  let tournamentPair: Awaited<ReturnType<typeof fetchTournamentPair>> | null = null;
+
   if (comp.status === "awaiting_tournament") {
-    const { next } = await fetchTournamentPair();
+    tournamentPair = await fetchTournamentPair();
+    const { next } = tournamentPair;
     if (next) {
       const teeTime = next.firstTeeTime ?? next.startDate;
       const pickDeadline = new Date(
@@ -46,5 +50,18 @@ export async function GET(_req: NextRequest, { params }: Props) {
     }
   }
 
-  return NextResponse.json({ competition: comp });
+  // Derive effective status from live ESPN data rather than the DB status field.
+  // The DB status is only authoritative for awaiting_tournament (no tournament linked).
+  let derivedStatus: DerivedCompStatus = "awaiting_tournament";
+  if (comp.tournament_espn_id) {
+    if (!tournamentPair) tournamentPair = await fetchTournamentPair();
+    const linked = [tournamentPair.inPlay, tournamentPair.next, tournamentPair.past]
+      .find((t) => t?.id === comp.tournament_espn_id);
+    // If not in the rolling 30-day window the tournament is over
+    const espnStatus = linked?.status ?? "post";
+    const hasPlayers = linked?.fieldReady ?? false;
+    derivedStatus = deriveCompStatus(espnStatus, hasPlayers);
+  }
+
+  return NextResponse.json({ competition: comp, derivedStatus });
 }

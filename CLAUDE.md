@@ -113,15 +113,26 @@ Populated by admin import. Columns: `player_id`, `ranking`, `name`, `first_name`
 
 ## Competition Status Lifecycle
 
-```
-awaiting_tournament  →  open  →  live  →  completed
-```
+The DB `status` column only stores `awaiting_tournament` (no tournament linked) or `open` (tournament linked). All further state is **derived at runtime** from live ESPN data in `lib/status.ts`.
 
-- **awaiting_tournament → open**: Automatic. `GET /api/competition/[code]` checks ESPN on every load (cached 10 min). When a `"pre"` tournament appears, it's linked and status flips to `"open"`.
-- **open → live**: Manual (not yet automated).
-- **live → completed**: Manual (not yet automated).
+### Derived statuses (`DerivedCompStatus`)
 
-**Key condition — "field not available"**: Status can be `"open"` (tournament linked) but `/api/players` returns `{ players: [] }` because ESPN hasn't published the field yet. This is the "tournament scheduled, picks not yet possible" state. The picks page shows "Tournament upcoming" and setup routes new users to the group hub.
+| Status | ESPN `status.type.name` | Field ready | Meaning |
+|---|---|---|---|
+| `awaiting_tournament` | — | — | No tournament linked yet |
+| `scheduled` | `STATUS_SCHEDULED` | no | Tournament announced, field not published |
+| `open` | `STATUS_SCHEDULED` | yes | Field confirmed, picks are open |
+| `in_progress` | `STATUS_IN_PROGRESS` | — | Tournament underway, picks locked |
+| `final` | `STATUS_FINAL` | — | Tournament over, final scores |
+
+ESPN's raw status string is normalised by `parseStatus()` in `lib/espn.ts` to `"pre" / "in" / "post"` before being passed to `deriveCompStatus()`.
+
+### How it works
+
+- **`awaiting_tournament → open`**: Automatic. `GET /api/competition/[code]` calls `fetchTournamentPair()` on every load (cached 10 min). When a `"pre"` tournament appears it's linked and DB status flips to `"open"`.
+- **`scheduled / open / in_progress / final`**: Derived automatically from ESPN. `GET /api/competition/[code]` calls `fetchTournamentPair()` for linked competitions and returns `derivedStatus` alongside the competition record. Leaderboard and field routes derive `isLive` / `isFinal` from `fetchLeaderboard`'s `espnStatus` return.
+
+Frontend pages consume `compData.derivedStatus` directly — no manual DB updates needed.
 
 ## Session & Auth
 

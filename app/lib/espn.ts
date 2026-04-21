@@ -268,6 +268,7 @@ export async function fetchLeaderboard(tournamentId: string, isFinal = false): P
   lastCutPosition: number;
   currentRound: number;
   playoff: { winner: { displayName: string; shortName: string }; losers: { displayName: string; shortName: string }[] } | null;
+  espnStatus: "pre" | "in" | "post";
 }> {
   const res = await fetch(
     `${ESPN_BASE}/leaderboard?event=${tournamentId}`,
@@ -281,6 +282,7 @@ export async function fetchLeaderboard(tournamentId: string, isFinal = false): P
 
   const data = await res.json() as { events?: RawEvent[] };
   const event = data.events?.find((e) => e.id === tournamentId) ?? data.events?.[0];
+  const espnStatus = parseStatus(event?.status?.type?.state);
   const competitors = event?.competitions?.[0]?.competitors ?? [];
 
   const entries: EspnLeaderboardEntry[] = competitors
@@ -327,7 +329,7 @@ export async function fetchLeaderboard(tournamentId: string, isFinal = false): P
   const { winner, losers } = detectPlayoff(competitors);
   const playoff = winner ? { winner, losers } : null;
 
-  return { entries, lastCutPosition, currentRound, playoff };
+  return { entries, lastCutPosition, currentRound, playoff, espnStatus };
 }
 
 async function fetchLeaderboardFromScoreboard(tournamentId: string): Promise<{
@@ -335,10 +337,11 @@ async function fetchLeaderboardFromScoreboard(tournamentId: string): Promise<{
   lastCutPosition: number;
   currentRound: number;
   playoff: { winner: { displayName: string; shortName: string }; losers: { displayName: string; shortName: string }[] } | null;
+  espnStatus: "pre" | "in" | "post";
 }> {
   const seasonEvents = await fetchSeasonEvents();
   const event = seasonEvents.find((e) => e.id === tournamentId);
-  if (!event) return { entries: [], lastCutPosition: 0, currentRound: 0, playoff: null };
+  if (!event) return { entries: [], lastCutPosition: 0, currentRound: 0, playoff: null, espnStatus: "post" };
 
   const competitors = event.competitions?.[0]?.competitors ?? [];
 
@@ -388,5 +391,5 @@ async function fetchLeaderboardFromScoreboard(tournamentId: string): Promise<{
   const { winner, losers } = detectPlayoff(competitors);
   const playoff = winner ? { winner, losers } : null;
 
-  return { entries, lastCutPosition, currentRound: 4, playoff };
+  return { entries, lastCutPosition, currentRound: 4, playoff, espnStatus: "post" };
 }

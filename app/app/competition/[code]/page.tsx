@@ -32,6 +32,8 @@ export default function CompetitionPage({ params }: Props) {
   const [loading, setLoading] = useState(true);
   const [revealed, setRevealed] = useState(false);
   const [awaitingTournament, setAwaitingTournament] = useState(false);
+  const [fieldAvailable, setFieldAvailable] = useState(false);
+  const [picksLocked, setPicksLocked] = useState(false);
 
   // Handle ?t= personal link token
   useEffect(() => {
@@ -60,9 +62,12 @@ export default function CompetitionPage({ params }: Props) {
       const picksData = await picksRes.json();
       const partData = await partRes.json();
 
-      if (compData.competition?.status === "awaiting_tournament") {
-        setAwaitingTournament(true);
-      } else if (compData.competition?.pick_deadline) {
+      const ds: string = compData.derivedStatus ?? "awaiting_tournament";
+      setAwaitingTournament(ds === "awaiting_tournament");
+      setFieldAvailable(ds === "open");
+      setPicksLocked(ds === "in_progress" || ds === "final");
+
+      if (ds !== "awaiting_tournament" && compData.competition?.pick_deadline) {
         const dl = new Date(compData.competition.pick_deadline);
         setDeadline(dl);
         setDeadlineLabel(
@@ -180,12 +185,26 @@ export default function CompetitionPage({ params }: Props) {
                 picks={picks}
                 onEdit={!isPastDeadline ? () => router.push(`/competition/${upperCode}/picks`) : undefined}
               />
-            ) : (
+            ) : fieldAvailable ? (
               <Link href={`/competition/${upperCode}/picks`}>
                 <Button variant="accent" full>
                   Make your picks →
                 </Button>
               </Link>
+            ) : picksLocked ? (
+              <div className="rounded-xl border border-line-soft bg-paper-2 px-4 py-4 text-center space-y-1">
+                <p className="font-display font-semibold text-base text-ink">Picks are locked</p>
+                <p className="font-sans text-xs text-ink-2">
+                  The tournament is underway. No picks were made for this competition.
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-line-soft bg-paper-2 px-4 py-4 text-center space-y-1">
+                <p className="font-display font-semibold text-base text-ink">Picks not open yet</p>
+                <p className="font-sans text-xs text-ink-2">
+                  The field hasn&apos;t been confirmed. Picks will open closer to the tournament.
+                </p>
+              </div>
             )}
           </div>
           )}
