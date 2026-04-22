@@ -4,7 +4,7 @@ import { fetchTournamentField } from "@/lib/espn";
 import { supabase } from "@/lib/supabase";
 import type { RankedPlayer } from "@/lib/datagolf";
 
-export const revalidate = 3600; // Rankings update weekly
+export const revalidate = 600;
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -12,58 +12,36 @@ export async function GET(req: NextRequest) {
 
   if (!code) return NextResponse.json({ error: "Missing code" }, { status: 400 });
 
-  // Get the tournament for this competition
   const { data: comp } = await supabase
     .from("competitions")
-    .select("tournament_espn_id")
+    .select("tournament_espn_id, tournament_tour")
     .eq("join_code", code.toUpperCase())
     .single();
 
   if (!comp || !comp.tournament_espn_id) return NextResponse.json({ players: [] });
 
+  const tour = (comp.tournament_tour === "eur" ? "eur" : "pga") as "pga" | "eur";
+
   const [rankings, fieldPlayers] = await Promise.all([
     fetchWorldRankings(),
-    fetchTournamentField(comp.tournament_espn_id),
+    fetchTournamentField(comp.tournament_espn_id, tour),
   ]);
 
-  // Merge field with rankings — only show players actually in the tournament field
-  const fieldIds = new Set(fieldPlayers.map((p) => p.id));
-  const fieldEspnNames = new Set(fieldPlayers.map((p) => p.displayName.toLowerCase()));
+  const rankingByName = new Map(rankings.map((r) => [r.name.toLowerCase(), r.worldRanking]));
 
-  let merged: RankedPlayer[];
+  const players: RankedPlayer[] = fieldPlayers.map((p) => ({
+    id: p.id,
+    name: p.displayName,
+    worldRanking: rankingByName.get(p.displayName.toLowerCase()) ?? null,
+  }));
 
-  if (rankings.length > 0) {
-    // DataGolf available — filter to field players, enrich with ESPN odds/form
-    merged = rankings
-      .filter((r) => {
-        if (r.espnId && fieldIds.has(r.espnId)) return true;
-        // Fallback: name match
-        return fieldEspnNames.has(r.name.toLowerCase());
-      })
-      .map((r) => {
-        const espnPlayer = fieldPlayers.find(
-          (p) => p.id === r.espnId || p.displayName.toLowerCase() === r.name.toLowerCase()
-        );
-        return {
-          ...r,
-          id: r.espnId ?? r.id,
-          odds: espnPlayer?.odds ?? r.odds,
-          recentForm: espnPlayer?.recentForm ?? r.recentForm,
-        };
-      });
-  } else {
-    // DataGolf unavailable — use ESPN field with placeholder rankings
-    // For mock tournaments assign sequential rankings so all brackets are populated
-    const isMock = comp.tournament_espn_id === "mock-tournament";
-    merged = fieldPlayers.map((p, i) => ({
-      id: p.id,
-      espnId: p.id,
-      name: p.displayName,
-      worldRanking: isMock ? i + 1 : p.worldRanking,
-      odds: p.odds,
-      recentForm: p.recentForm,
-    }));
-  }
+  // Ranked players first (ascending), unranked at the end
+  players.sort((a, b) => {
+    if (a.worldRanking === null && b.worldRanking === null) return 0;
+    if (a.worldRanking === null) return 1;
+    if (b.worldRanking === null) return -1;
+    return a.worldRanking - b.worldRanking;
+  });
 
-  return NextResponse.json({ players: merged });
+  return NextResponse.json({ players });
 }

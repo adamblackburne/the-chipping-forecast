@@ -8,6 +8,7 @@ create table if not exists competitions (
   tournament_espn_id    text,
   tournament_name       text,
   tournament_start_date date,
+  tournament_tour       text not null default 'pga' check (tournament_tour in ('pga', 'eur')),
   pick_deadline         timestamptz,
   max_players           int,
   status                text not null default 'awaiting_tournament'
@@ -15,6 +16,9 @@ create table if not exists competitions (
   created_by_session    uuid,
   created_at            timestamptz not null default now()
 );
+
+-- Migration for existing databases:
+-- alter table competitions add column if not exists tournament_tour text not null default 'pga' check (tournament_tour in ('pga', 'eur'));
 
 create index if not exists competitions_join_code_idx on competitions (join_code);
 

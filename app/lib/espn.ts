@@ -1,6 +1,9 @@
 const ESPN_BASE = "https://site.api.espn.com/apis/site/v2/sports/golf";
+const ESPN_WEB_BASE = "https://site.web.api.espn.com/apis/site/v2/sports/golf";
 const ESPN_SCOREBOARD = "https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard";
 const ESPN_TOURSCHEDULE = "https://site.web.api.espn.com/apis/site/v2/sports/golf/pga/tourschedule";
+const ESPN_EUR_TOURSCHEDULE = `${ESPN_WEB_BASE}/eur/tourschedule`;
+const ESPN_EUR_LEADERBOARD_BASE = `${ESPN_WEB_BASE}/leaderboard?league=eur&region=gb&lang=en`;
 
 export interface EspnTournament {
   id: string;
@@ -12,6 +15,7 @@ export interface EspnTournament {
   firstTeeTime: string | null;  // ISO string, null if not yet published
   venue: string;
   fieldReady: boolean; // true when competitors have been announced
+  tour: "pga" | "eur";
 }
 
 export interface EspnPlayer {
@@ -117,10 +121,16 @@ function parseScoreToPar(displayValue: string | undefined): number | null {
   return isNaN(parsed) ? null : parsed;
 }
 
-/** Fetch the full season schedule as a list of tournaments. */
+/** Fetch the full PGA Tour season schedule. */
 export async function fetchFullSchedule(): Promise<EspnTournament[]> {
   const events = await fetchTourSchedule();
-  return events.map((e) => adaptTournament(e, false));
+  return events.map((e) => adaptTournament(e, false, "pga"));
+}
+
+/** Fetch the full DP World Tour season schedule. */
+export async function fetchEurFullSchedule(): Promise<EspnTournament[]> {
+  const events = await fetchEurTourSchedule();
+  return events.map((e) => adaptTournament(e, false, "eur"));
 }
 
 /** Fetch the current/upcoming PGA Tour event. */
@@ -242,9 +252,9 @@ export async function fetchTournamentPair(): Promise<{
   const upcomingCompetitors = (upcomingLeaderboard ?? upcomingRaw)?.competitions?.[0]?.competitors ?? [];
   const fieldReady = upcomingCompetitors.length > 0;
 
-  const inPlay = inPlayRaw ? adaptTournament(enrich(inPlayRaw, activeLeaderboard)) : null;
-  const upcoming = upcomingRaw ? adaptTournament(enrich(upcomingRaw, upcomingLeaderboard), fieldReady) : null;
-  const past = pastRaw ? adaptTournament(pastRaw) : null;
+  const inPlay = inPlayRaw ? adaptTournament(enrich(inPlayRaw, activeLeaderboard), true, "pga") : null;
+  const upcoming = upcomingRaw ? adaptTournament(enrich(upcomingRaw, upcomingLeaderboard), fieldReady, "pga") : null;
+  const past = pastRaw ? adaptTournament(pastRaw, true, "pga") : null;
 
   // next: for pick flows — live first, then upcoming, then off-season fallback to past
   const next = inPlay ?? upcoming ?? past;
@@ -252,7 +262,85 @@ export async function fetchTournamentPair(): Promise<{
   return { inPlay, next, past };
 }
 
-function adaptTournament(e: RawEvent, fieldReady = true): EspnTournament {
+/** Fetch the full DP World Tour schedule for the current season. */
+async function fetchEurTourSchedule(): Promise<RawEvent[]> {
+  const year = new Date().getFullYear();
+  const res = await fetch(
+    `${ESPN_EUR_TOURSCHEDULE}?region=gb&lang=en&season=${year}`,
+    { next: { revalidate: 3600 } }
+  );
+  if (!res.ok) return [];
+  const data = await res.json() as {
+    currentSeason?: number;
+    seasons?: Array<{ year: number; events?: RawScheduleEvent[] }>;
+  };
+  const currentYear = data.currentSeason ?? year;
+  const season = data.seasons?.find(s => s.year === currentYear) ?? data.seasons?.[0];
+  const events = (season?.events ?? []).filter(
+    (e) => !e.defendingChampion?.roster || e.defendingChampion.roster.length <= 1
+  );
+  return events.map((e): RawEvent => ({
+    id: e.id,
+    name: e.label,
+    shortName: e.label,
+    date: e.startDate,
+    endDate: e.endDate,
+    status: { type: { state: e.fullStatus?.type?.state, name: e.fullStatus?.type?.name } },
+    competitions: [{ venue: { fullName: e.locations?.[0] ?? "" } }],
+  }));
+}
+
+export async function fetchEurTournamentPair(): Promise<{
+  inPlay: EspnTournament | null;
+  next: EspnTournament | null;
+  past: EspnTournament | null;
+}> {
+  const seasonEvents = await fetchEurTourSchedule();
+
+  const inPlayRaw = seasonEvents.find((e) => parseStatus(e.status?.type?.state) === "in") ?? null;
+  const upcomingRaw = seasonEvents
+    .filter((e) => parseStatus(e.status?.type?.state) === "pre")
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0] ?? null;
+  const pastRaw = seasonEvents
+    .filter((e) => parseStatus(e.status?.type?.state) === "post")
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0] ?? null;
+
+  const fetchEurLeaderboardEvent = async (id?: string): Promise<RawEvent | undefined> => {
+    const url = id ? `${ESPN_EUR_LEADERBOARD_BASE}&event=${id}` : ESPN_EUR_LEADERBOARD_BASE;
+    const res = await fetch(url, { next: { revalidate: 600 } });
+    if (!res.ok) return undefined;
+    const data = await res.json() as { events?: RawEvent[] };
+    return data.events?.[0];
+  };
+
+  const [activeLeaderboard, upcomingLeaderboard] = await Promise.all([
+    fetchEurLeaderboardEvent(inPlayRaw?.id),
+    upcomingRaw ? fetchEurLeaderboardEvent(upcomingRaw.id) : Promise.resolve(undefined),
+  ]);
+
+  const enrich = (raw: RawEvent, lb?: RawEvent): RawEvent => {
+    if (!lb) return raw;
+    const scheduleVenue = raw.competitions?.[0]?.venue?.fullName;
+    const lbComp = lb.competitions?.[0];
+    const mergedVenue = lbComp?.venue?.fullName || scheduleVenue || "";
+    return {
+      ...raw,
+      competitions: [{ ...lbComp, venue: { fullName: mergedVenue } }, ...(lb.competitions?.slice(1) ?? [])],
+    };
+  };
+
+  const upcomingCompetitors = (upcomingLeaderboard ?? upcomingRaw)?.competitions?.[0]?.competitors ?? [];
+  const fieldReady = upcomingCompetitors.length > 0;
+
+  const inPlay = inPlayRaw ? adaptTournament(enrich(inPlayRaw, activeLeaderboard), true, "eur") : null;
+  const upcoming = upcomingRaw ? adaptTournament(enrich(upcomingRaw, upcomingLeaderboard), fieldReady, "eur") : null;
+  const past = pastRaw ? adaptTournament(pastRaw, true, "eur") : null;
+
+  const next = inPlay ?? upcoming ?? past;
+  return { inPlay, next, past };
+}
+
+function adaptTournament(e: RawEvent, fieldReady = true, tour: "pga" | "eur" = "pga"): EspnTournament {
   const comp = e.competitions?.[0];
   return {
     id: e.id,
@@ -264,15 +352,23 @@ function adaptTournament(e: RawEvent, fieldReady = true): EspnTournament {
     firstTeeTime: comp?.startDate ?? null,
     venue: comp?.venue?.fullName ?? "",
     fieldReady,
+    tour,
   };
 }
 
-/** Fetch field (players) for a tournament, with world rankings. */
-export async function fetchTournamentField(tournamentId: string): Promise<EspnPlayer[]> {
-  // Mock tournament has no real ESPN event — fetch the current real leaderboard for its field
-  const url = tournamentId === "mock-tournament"
-    ? `${ESPN_BASE}/leaderboard`
-    : `${ESPN_BASE}/leaderboard?event=${tournamentId}`;
+/** Fetch field (players) for a tournament. */
+export async function fetchTournamentField(tournamentId: string, tour: "pga" | "eur" = "pga"): Promise<EspnPlayer[]> {
+  // EUR leaderboard always returns the current week's event without an event ID.
+  // PGA uses the event ID to target a specific tournament.
+  // Mock tournament has no real ESPN event — fall back to generic leaderboard.
+  let url: string;
+  if (tournamentId === "mock-tournament") {
+    url = `${ESPN_BASE}/leaderboard`;
+  } else if (tour === "eur") {
+    url = `${ESPN_BASE}/leaderboard?league=eur&region=gb&lang=en`;
+  } else {
+    url = `${ESPN_BASE}/leaderboard?event=${tournamentId}`;
+  }
   const res = await fetch(url, { next: { revalidate: 600 } });
   if (!res.ok) return [];
   const data = await res.json() as { events?: RawEvent[] };

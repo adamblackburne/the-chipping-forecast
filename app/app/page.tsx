@@ -2,17 +2,23 @@ import Link from "next/link";
 import { MobileShell } from "@/components/layout/MobileShell";
 import { Button } from "@/components/ui/Button";
 import { Divider } from "@/components/ui/Divider";
-import { fetchTournamentPair } from "@/lib/espn";
+import { fetchTournamentPair, fetchEurTournamentPair } from "@/lib/espn";
 
 export const revalidate = 600;
 
 export default async function LandingPage() {
-  const { inPlay, next, past } = await fetchTournamentPair().catch(() => ({ inPlay: null, next: null, past: null }));
+  const [pga, eur] = await Promise.all([
+    fetchTournamentPair().catch(() => ({ inPlay: null, next: null, past: null })),
+    fetchEurTournamentPair().catch(() => ({ inPlay: null, next: null, past: null })),
+  ]);
 
-  // "current" is whatever the user should be acting on right now
-  const current = inPlay ?? next;
-  const deadlineDisplay = current?.firstTeeTime && current.status === "pre"
-    ? formatDeadline(current.firstTeeTime)
+  const pgaCurrent = pga.inPlay ?? pga.next;
+  const pgaPast = pga.past;
+  const eurCurrent = eur.inPlay ?? eur.next;
+  const eurPast = eur.past;
+
+  const pgaDeadline = pgaCurrent?.firstTeeTime && pgaCurrent.status === "pre"
+    ? formatDeadline(pgaCurrent.firstTeeTime)
     : null;
 
   return (
@@ -28,102 +34,185 @@ export default async function LandingPage() {
           </p>
         </div>
 
-        {/* Tournament cards — always show current + past */}
-        <div className="flex flex-col gap-3">
-          {/* Current: live or upcoming */}
-          {current && (
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="w-3 h-0.5 bg-ink inline-block" aria-hidden />
-                <span className="font-mono text-[10px] uppercase tracking-widest text-ink-2">
-                  {tournamentTimingLabel(current.startDate)}
-                </span>
-              </div>
-              {current.status === "in" ? (
-                <Link href="/leaderboard" className="block">
-                  <div className="border border-ink/10 bg-paper rounded-xl p-4">
-                    <div className="flex items-start justify-between gap-2 mb-1">
-                      <p className="font-display font-bold text-xl text-ink leading-tight">
-                        {current.name}
-                      </p>
-                      <span className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full border shrink-0 bg-red-600 text-white border-red-600">
-                        <span className="relative flex h-1.5 w-1.5">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
-                          <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-white" />
-                        </span>
-                        Live
-                      </span>
-                    </div>
-                    {current.venue && (
-                      <p className="font-sans text-xs text-ink-2">{current.venue}</p>
-                    )}
-                    <p className="font-sans text-xs text-ink underline mt-2 text-right">
-                      View Live Leaderboard
-                    </p>
-                  </div>
-                </Link>
-              ) : (
-                <div className={[
-                  "border rounded-xl p-4",
-                  current.fieldReady ? "border-accent bg-accent-soft" : "border-ink/10 bg-paper",
-                ].join(" ")}>
-                  <div className="flex items-start justify-between gap-2 mb-1">
-                    <p className="font-display font-bold text-xl text-ink leading-tight">
-                      {current.name}
-                    </p>
-                    <span className={[
-                      "text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full border shrink-0",
-                      current.fieldReady
-                        ? "bg-ink text-paper border-ink"
-                        : "bg-paper text-ink-2 border-ink/20",
-                    ].join(" ")}>
-                      {current.fieldReady ? "Open for picks" : "Scheduled"}
-                    </span>
-                  </div>
-                  {current.venue && (
-                    <p className="font-sans text-xs text-ink-2">{current.venue}</p>
-                  )}
-                  {deadlineDisplay && (
-                    <p className="font-sans text-xs text-ink-2 mt-1">
-                      Pick deadline:{" "}
-                      <span className="text-ink font-medium">{deadlineDisplay}</span>
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
+        {/* PGA Tour */}
+        <section className="flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <span className="w-3 h-0.5 bg-ink inline-block" aria-hidden />
+            <span className="font-mono text-[10px] uppercase tracking-widest text-ink-2">
+              PGA Tour
+            </span>
+          </div>
 
-          {/* Past: most recently finished tournament */}
-          {past && past.id !== current?.id && (
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="w-3 h-0.5 bg-ink inline-block" aria-hidden />
-                <span className="font-mono text-[10px] uppercase tracking-widest text-ink-2">
-                  Past Tournaments
-                </span>
-              </div>
+          {pgaCurrent && (
+            pgaCurrent.status === "in" ? (
               <Link href="/leaderboard" className="block">
                 <div className="border border-ink/10 bg-paper rounded-xl p-4">
                   <div className="flex items-start justify-between gap-2 mb-1">
                     <p className="font-display font-bold text-xl text-ink leading-tight">
-                      {past.name}
+                      {pgaCurrent.name}
                     </p>
-                    <span className="text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full border shrink-0 bg-paper text-ink-2 border-ink/20">
-                      Finished
+                    <span className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full border shrink-0 bg-red-600 text-white border-red-600">
+                      <span className="relative flex h-1.5 w-1.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-white" />
+                      </span>
+                      Live
                     </span>
                   </div>
-                  {past.venue && (
-                    <p className="font-sans text-xs text-ink-2">{past.venue}</p>
+                  {pgaCurrent.venue && (
+                    <p className="font-sans text-xs text-ink-2">{pgaCurrent.venue}</p>
                   )}
+                  <p className="font-mono text-[11px] text-ink-3 mt-0.5">
+                    {weekTimingLabel(pgaCurrent.startDate, pgaCurrent.endDate)}
+                  </p>
                   <p className="font-sans text-xs text-ink underline mt-2 text-right">
-                    View Results
+                    View Live Leaderboard
                   </p>
                 </div>
               </Link>
+            ) : (
+              <div className={[
+                "border rounded-xl p-4",
+                pgaCurrent.fieldReady ? "border-accent bg-accent-soft" : "border-ink/10 bg-paper",
+              ].join(" ")}>
+                <div className="flex items-start justify-between gap-2 mb-1">
+                  <p className="font-display font-bold text-xl text-ink leading-tight">
+                    {pgaCurrent.name}
+                  </p>
+                  <span className={[
+                    "text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full border shrink-0",
+                    pgaCurrent.fieldReady
+                      ? "bg-ink text-paper border-ink"
+                      : "bg-paper text-ink-2 border-ink/20",
+                  ].join(" ")}>
+                    {pgaCurrent.fieldReady ? "Open for picks" : "Scheduled"}
+                  </span>
+                </div>
+                {pgaCurrent.venue && (
+                  <p className="font-sans text-xs text-ink-2">{pgaCurrent.venue}</p>
+                )}
+                <p className="font-mono text-[11px] text-ink-3 mt-0.5">
+                  {weekTimingLabel(pgaCurrent.startDate, pgaCurrent.endDate)}
+                </p>
+                {pgaDeadline && (
+                  <p className="font-sans text-xs text-ink-2 mt-1">
+                    Pick deadline:{" "}
+                    <span className="text-ink font-medium">{pgaDeadline}</span>
+                  </p>
+                )}
+              </div>
+            )
+          )}
+
+          {pgaPast && pgaPast.id !== pgaCurrent?.id && (
+            <Link href="/leaderboard" className="block">
+              <div className="border border-ink/10 bg-paper rounded-xl p-4">
+                <div className="flex items-start justify-between gap-2 mb-1">
+                  <p className="font-display font-bold text-xl text-ink leading-tight">
+                    {pgaPast.name}
+                  </p>
+                  <span className="text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full border shrink-0 bg-paper text-ink-2 border-ink/20">
+                    Finished
+                  </span>
+                </div>
+                {pgaPast.venue && (
+                  <p className="font-sans text-xs text-ink-2">{pgaPast.venue}</p>
+                )}
+                <p className="font-mono text-[11px] text-ink-3 mt-0.5">
+                  {weekTimingLabel(pgaPast.startDate, pgaPast.endDate)}
+                </p>
+                <p className="font-sans text-xs text-ink underline mt-2 text-right">
+                  View Results
+                </p>
+              </div>
+            </Link>
+          )}
+        </section>
+
+        {/* DP World Tour */}
+        <section className="flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <span className="w-3 h-0.5 bg-ink inline-block" aria-hidden />
+            <span className="font-mono text-[10px] uppercase tracking-widest text-ink-2">
+              DP World Tour
+            </span>
+          </div>
+
+          {eurCurrent && (
+            eurCurrent.status === "in" ? (
+              <div className="border border-ink/10 bg-paper rounded-xl p-4">
+                <div className="flex items-start justify-between gap-2 mb-1">
+                  <p className="font-display font-bold text-xl text-ink leading-tight">
+                    {eurCurrent.name}
+                  </p>
+                  <span className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full border shrink-0 bg-red-600 text-white border-red-600">
+                    <span className="relative flex h-1.5 w-1.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-white" />
+                    </span>
+                    Live
+                  </span>
+                </div>
+                {eurCurrent.venue && (
+                  <p className="font-sans text-xs text-ink-2">{eurCurrent.venue}</p>
+                )}
+                <p className="font-mono text-[11px] text-ink-3 mt-0.5">
+                  {weekTimingLabel(eurCurrent.startDate, eurCurrent.endDate)}
+                </p>
+              </div>
+            ) : (
+              <div className={[
+                "border rounded-xl p-4",
+                eurCurrent.fieldReady ? "border-accent bg-accent-soft" : "border-ink/10 bg-paper",
+              ].join(" ")}>
+                <div className="flex items-start justify-between gap-2 mb-1">
+                  <p className="font-display font-bold text-xl text-ink leading-tight">
+                    {eurCurrent.name}
+                  </p>
+                  <span className={[
+                    "text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full border shrink-0",
+                    eurCurrent.fieldReady
+                      ? "bg-ink text-paper border-ink"
+                      : "bg-paper text-ink-2 border-ink/20",
+                  ].join(" ")}>
+                    {eurCurrent.fieldReady ? "Open for picks" : "Scheduled"}
+                  </span>
+                </div>
+                {eurCurrent.venue && (
+                  <p className="font-sans text-xs text-ink-2">{eurCurrent.venue}</p>
+                )}
+                <p className="font-mono text-[11px] text-ink-3 mt-0.5">
+                  {weekTimingLabel(eurCurrent.startDate, eurCurrent.endDate)}
+                </p>
+              </div>
+            )
+          )}
+
+          {eurPast && eurPast.id !== eurCurrent?.id && (
+            <div className="border border-ink/10 bg-paper rounded-xl p-4">
+              <div className="flex items-start justify-between gap-2 mb-1">
+                <p className="font-display font-bold text-xl text-ink leading-tight">
+                  {eurPast.name}
+                </p>
+                <span className="text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full border shrink-0 bg-paper text-ink-2 border-ink/20">
+                  Finished
+                </span>
+              </div>
+              {eurPast.venue && (
+                <p className="font-sans text-xs text-ink-2">{eurPast.venue}</p>
+              )}
+              <p className="font-mono text-[11px] text-ink-3 mt-0.5">
+                {weekTimingLabel(eurPast.startDate, eurPast.endDate)}
+              </p>
             </div>
           )}
-        </div>
+
+          {!eurCurrent && !eurPast && (
+            <p className="font-sans text-sm text-ink-3 text-center py-4">
+              No events found.
+            </p>
+          )}
+        </section>
 
         <Divider />
 
@@ -147,7 +236,7 @@ export default async function LandingPage() {
             href="/schedule#next-event"
             className="font-mono text-xs text-ink-2 underline underline-offset-2 hover:text-ink transition-colors"
           >
-            View full 2026 schedule →
+            View full 2026 PGA schedule →
           </Link>
         </div>
 
@@ -160,10 +249,11 @@ export default async function LandingPage() {
   );
 }
 
-function tournamentTimingLabel(startDate: string): string {
+function weekTimingLabel(startDate: string, endDate: string): string {
   const now = new Date();
   const start = new Date(startDate);
-  // Monday of the current week (Mon = 0 offset)
+  const end = new Date(endDate);
+
   const dayOfWeek = (now.getDay() + 6) % 7; // Mon=0 … Sun=6
   const thisMonday = new Date(now);
   thisMonday.setDate(now.getDate() - dayOfWeek);
@@ -172,10 +262,24 @@ function tournamentTimingLabel(startDate: string): string {
   nextMonday.setDate(thisMonday.getDate() + 7);
   const weekAfter = new Date(nextMonday);
   weekAfter.setDate(nextMonday.getDate() + 7);
+  const lastMonday = new Date(thisMonday);
+  lastMonday.setDate(thisMonday.getDate() - 7);
 
-  if (start >= thisMonday && start < nextMonday) return "This week";
-  if (start >= nextMonday && start < weekAfter) return "Next week";
-  return "Coming up";
+  let prefix: string;
+  if (start >= thisMonday && start < nextMonday) prefix = "This Week";
+  else if (start >= nextMonday && start < weekAfter) prefix = "Next Week";
+  else if (start >= lastMonday && start < thisMonday) prefix = "Last Week";
+  else prefix = start < now ? "Past" : "Coming Up";
+
+  return `${prefix}: ${formatShortDateRange(start, end)}`;
+}
+
+function formatShortDateRange(start: Date, end: Date): string {
+  const dayMonthOpts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short" };
+  if (start.getMonth() === end.getMonth()) {
+    return `${start.getDate()}–${end.toLocaleString("en-GB", dayMonthOpts)}`;
+  }
+  return `${start.toLocaleString("en-GB", dayMonthOpts)} – ${end.toLocaleString("en-GB", dayMonthOpts)}`;
 }
 
 function formatDeadline(teeTime: string): string {

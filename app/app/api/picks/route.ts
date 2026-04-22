@@ -33,17 +33,18 @@ export async function POST(req: NextRequest) {
 
   const { joinCode, pickSlot, playerEspnId, playerName, worldRanking } = await req.json();
 
-  if (!pickSlot || !playerEspnId || !playerName || !worldRanking) {
+  if (!pickSlot || !playerEspnId || !playerName) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
   if (![1, 2, 3, 4].includes(pickSlot)) {
     return NextResponse.json({ error: "Invalid pick slot" }, { status: 400 });
   }
 
-  // Validate bracket
-  if (!validatePickSlot(worldRanking, pickSlot as 1 | 2 | 3 | 4)) {
+  // null worldRanking = unranked player, valid only for slot 4
+  const rankingValue: number | null = worldRanking ?? null;
+  if (!validatePickSlot(rankingValue, pickSlot as 1 | 2 | 3 | 4)) {
     return NextResponse.json(
-      { error: `World ranking ${worldRanking} is not valid for slot ${pickSlot}` },
+      { error: `World ranking ${rankingValue ?? "unranked"} is not valid for slot ${pickSlot}` },
       { status: 400 }
     );
   }
@@ -76,7 +77,7 @@ export async function POST(req: NextRequest) {
         pick_slot:            pickSlot,
         player_espn_id:       playerEspnId,
         player_name:          playerName,
-        world_ranking_at_pick: worldRanking,
+        world_ranking_at_pick: rankingValue ?? 0,
         final_position:       null,
       },
       { onConflict: "participant_id,pick_slot" }

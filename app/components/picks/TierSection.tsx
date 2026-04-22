@@ -27,8 +27,9 @@ export function TierSection({
 }: TierSectionProps) {
   const [showAll, setShowAll] = useState(false);
   const isPastDeadline = new Date() >= deadline;
-  const visible = showAll ? players : players.slice(0, INITIAL_SHOW);
-  const hasMore = players.length > INITIAL_SHOW && !showAll;
+  const showAllForSlot = slot === 4;
+  const visible = (showAll || showAllForSlot) ? players : players.slice(0, INITIAL_SHOW);
+  const hasMore = players.length > INITIAL_SHOW && !showAll && !showAllForSlot;
 
   return (
     <div>
@@ -76,6 +77,20 @@ export function TierSection({
       {/* Player list — only rendered when expanded */}
       {isExpanded && (
         <div>
+          {players.length > 0 && (
+            <div className="flex items-center gap-3 px-3 py-1 border-b border-line-soft">
+              <span className="shrink-0 w-4" aria-hidden />
+              <span className="shrink-0 w-8" aria-hidden />
+              <span className="font-mono text-[9px] uppercase tracking-widest text-ink-3 w-7 shrink-0">
+                OWGR
+              </span>
+            </div>
+          )}
+          {players.length === 0 && (
+            <p className="px-4 py-3 text-sm text-ink-3 font-sans">
+              No players in this tier for this event.
+            </p>
+          )}
           {visible.map((player) => (
             <GolferRow
               key={player.id}

@@ -97,6 +97,10 @@ export default function PicksPage({ params }: Props) {
           }
           setPicks(restored);
           setExpandedSlot(firstUnpickedSlot(restored));
+        } else {
+          // Expand the first slot that actually has players (e.g. all EUR players sit in 31+)
+          const firstNonEmpty = (SLOTS.find((s) => filterByBracket(loadedPlayers, s).length > 0) ?? 1) as 1 | 2 | 3 | 4;
+          setExpandedSlot(firstNonEmpty);
         }
       } catch {
         setError("Failed to load player data");

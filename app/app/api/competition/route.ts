@@ -22,6 +22,7 @@ export async function POST(req: NextRequest) {
     tournamentEspnId,
     tournamentName,
     tournamentStartDate,
+    tournamentTour,
     firstTeeTime,
   } = body;
 
@@ -52,6 +53,7 @@ export async function POST(req: NextRequest) {
       tournament_espn_id:    tournamentEspnId ?? null,
       tournament_name:       tournamentName ?? null,
       tournament_start_date: tournamentStartDate ?? null,
+      tournament_tour:       tournamentTour === "eur" ? "eur" : "pga",
       pick_deadline:         pickDeadline,
       max_players:           maxPlayers ?? null,
       status:                hasTournament ? "open" : "awaiting_tournament",

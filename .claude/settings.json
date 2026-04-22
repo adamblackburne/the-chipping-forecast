@@ -38,7 +38,18 @@
       "Bash(awk '{print $2}')",
       "Bash(xargs kill *)",
       "Bash(pkill -f \"npm.*dev\")",
-      "WebFetch(domain:site.web.api.espn.com)"
+      "WebFetch(domain:site.web.api.espn.com)",
+      "Bash(vercel --prod)",
+      "Bash(npx tsc *)",
+      "Bash(grep -v \"^$\")",
+      "Bash(curl -s \"https://site.api.espn.com/apis/site/v2/sports/golf/leaderboard?league=eur&region=gb&lang=en\")",
+      "Bash(pkill -f \"next dev\")",
+      "Bash(curl -s \"http://localhost:3000/api/players?code=K4ZU64\")",
+      "Bash(curl -s \"http://localhost:3000/api/competition/K4ZU64\")",
+      "Bash(git -C /Users/adamblackburne/projects/chipping-forecast status)",
+      "Bash(git -C /Users/adamblackburne/projects/chipping-forecast diff)",
+      "Bash(git -C /Users/adamblackburne/projects/chipping-forecast log --oneline -5)",
+      "Bash(git -C /Users/adamblackburne/projects/chipping-forecast add .claude/settings.json app/app/api/competition/\\\\[code\\\\]/route.ts app/app/api/competition/route.ts app/app/api/picks/route.ts app/app/api/players/route.ts app/app/api/tournaments/route.ts app/app/competition/\\\\[code\\\\]/picks/page.tsx app/app/create/page.tsx app/app/page.tsx app/components/picks/GolferRow.tsx app/components/picks/TierSection.tsx app/lib/datagolf.ts app/lib/espn.ts app/lib/rankings.ts app/supabase/schema.sql)"
     ],
     "additionalDirectories": [
       "/Users/adamblackburne/Documents/Documents - Adam's MacBook/Vibe Coding/the-chipping-forecast/app/supabase/migrations",

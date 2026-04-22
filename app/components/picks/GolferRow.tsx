@@ -51,16 +51,11 @@ export function GolferRow({ player, selected, onSelect, disabled = false }: Golf
 
       {/* Rank */}
       <span className="font-mono text-xs text-ink-2 w-7 shrink-0">
-        #{player.worldRanking}
+        {player.worldRanking !== null ? `#${player.worldRanking}` : "?"}
       </span>
 
       {/* Name */}
       <span className="flex-1 font-sans text-sm text-ink">{player.name}</span>
-
-      {/* Odds */}
-      {player.odds && (
-        <span className="font-mono text-xs text-ink-3 shrink-0">{player.odds}</span>
-      )}
     </button>
   );
 }
